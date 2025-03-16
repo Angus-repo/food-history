@@ -1,17 +1,19 @@
 // 圖片預覽功能
 function previewImage(input) {
+    const preview = document.getElementById('imagePreview');
     if (input.files && input.files[0]) {
-        var reader = new FileReader();
+        const reader = new FileReader();
         reader.onload = function(e) {
-            var preview = document.getElementById('imagePreview');
             if (!preview) {
-                preview = document.createElement('img');
-                preview.id = 'imagePreview';
-                preview.className = 'mt-2';
-                preview.style.maxWidth = '200px';
-                input.parentElement.appendChild(preview);
+                const img = document.createElement('img');
+                img.id = 'imagePreview';
+                img.className = 'mt-2';
+                img.style.maxWidth = '200px';
+                input.parentElement.appendChild(img);
+                img.src = e.target.result;
+            } else {
+                preview.src = e.target.result;
             }
-            preview.src = e.target.result;
         }
         reader.readAsDataURL(input.files[0]);
     }

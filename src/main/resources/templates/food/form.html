@@ -44,8 +44,8 @@
                 <input type="file" class="form-control" id="imageFile" name="imageFile" 
                        accept="image/*" onchange="previewImage(this)" capture="environment">
                 <div class="form-text">支援 JPEG、PNG 或 GIF 格式的圖片</div>
-                <img th:if="*{image != null}" 
-                     th:src="@{'data:' + *{imageContentType} + ';base64,' + ${T(java.util.Base64).getEncoder().encodeToString(food.image)}}"
+                <img th:if="${imageUrl != null}" 
+                     th:src="${imageUrl}"
                      class="mt-2" style="max-width: 200px;" id="imagePreview">
             </div>
 

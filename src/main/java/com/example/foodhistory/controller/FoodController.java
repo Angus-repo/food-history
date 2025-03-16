@@ -36,7 +36,9 @@ public class FoodController {
     
     @GetMapping("/new")
     public String createForm(Model model) {
-        model.addAttribute("food", new Food());
+        Food food = new Food();
+        model.addAttribute("food", food);
+        model.addAttribute("imageUrl", null);
         return "food/form";
     }
     
@@ -45,6 +47,9 @@ public class FoodController {
         Food food = foodService.getFoodById(id);
         if (food == null) {
             return "redirect:/foods";
+        }
+        if (food.getImage() != null) {
+            model.addAttribute("imageUrl", "data:" + food.getImageContentType() + ";base64," + Base64.getEncoder().encodeToString(food.getImage()));
         }
         model.addAttribute("food", food);
         return "food/form";
