@@ -62,10 +62,10 @@
                     </tr>
                 </thead>
                 <tbody>
-                    <tr th:each="food : ${foods}">
+                    <tr th:each="food, iterStat : ${foods}">
                         <td>
                             <img th:if="${food.image != null}" 
-                                 th:src="@{'data:' + ${food.imageContentType} + ';base64,' + ${T(java.util.Base64).getEncoder().encodeToString(food.image)}}"
+                                 th:src="${base64Images[iterStat.index]}"
                                  class="food-image"
                                  alt="食物圖片">
                             <div th:if="${food.image == null}" class="food-image bg-light d-flex align-items-center justify-content-center">

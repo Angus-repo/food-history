@@ -14,7 +14,7 @@ public class Food {
     @Column(length = 30, nullable = false)
     private String name;
     
-    @Column(nullable = false)
+    @Column(name = "serving_size", nullable = false)
     private String servingSize;
     
     @Column(nullable = false)
@@ -24,7 +24,9 @@ public class Food {
     private String notes;
     
     @Lob
+    @Column(columnDefinition = "BLOB")
     private byte[] image;
     
+    @Column(name = "image_content_type")
     private String imageContentType;
 }

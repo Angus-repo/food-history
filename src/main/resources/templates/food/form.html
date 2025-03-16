@@ -9,6 +9,16 @@
 </head>
 <body>
     <div class="container mt-4">
+        <!-- Alert Messages -->
+        <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
+            <span th:text="${error}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        <div th:if="${success}" class="alert alert-success alert-dismissible fade show" role="alert">
+            <span th:text="${success}"></span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
         <div class="row mb-3">
             <div class="col">
                 <a href="/foods" class="btn btn-outline-secondary">
@@ -33,6 +43,7 @@
                 <label for="imageFile" class="form-label">食物圖片</label>
                 <input type="file" class="form-control" id="imageFile" name="imageFile" 
                        accept="image/*" onchange="previewImage(this)" capture="environment">
+                <div class="form-text">支援 JPEG、PNG 或 GIF 格式的圖片</div>
                 <img th:if="*{image != null}" 
                      th:src="@{'data:' + *{imageContentType} + ';base64,' + ${T(java.util.Base64).getEncoder().encodeToString(food.image)}}"
                      class="mt-2" style="max-width: 200px;" id="imagePreview">
