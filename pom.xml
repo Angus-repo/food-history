@@ -13,7 +13,7 @@
     
     <groupId>com.example</groupId>
     <artifactId>food-history</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.1</version>
     <name>food-history</name>
     <description>Food History Management System</description>
     
