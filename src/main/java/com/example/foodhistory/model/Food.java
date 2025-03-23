@@ -14,11 +14,11 @@ public class Food {
     @Column(length = 30, nullable = false)
     private String name;
     
-    @Column(name = "serving_size", nullable = false)
+    @Column(name = "serving_size")
     private String servingSize;
     
-    @Column(nullable = false)
-    private Integer grams;
+    @Column(name = "carb_grams")
+    private Integer carbGrams;
     
     @Column(length = 100)
     private String notes;

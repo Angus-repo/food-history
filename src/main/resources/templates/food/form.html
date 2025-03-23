@@ -60,7 +60,7 @@
 
             <div class="mb-3">
                 <label for="servingSize" class="form-label">份數</label>
-                <select class="form-select" id="servingSize" th:field="*{servingSize}" required>
+                <select class="form-select" id="servingSize" th:field="*{servingSize}">
                     <option value="">請選擇份數</option>
                     <option value="1">1份</option>
                     <option value="1.5">1.5份</option>
@@ -73,16 +73,16 @@
                     <option value="5">5份</option>
                 </select>
                 <div class="invalid-feedback">
-                    請選擇份數
+                    請選擇份數或填寫碳水克數
                 </div>
             </div>
 
             <div class="mb-3">
-                <label for="grams" class="form-label">克數</label>
-                <input type="number" class="form-control" id="grams" th:field="*{grams}" 
-                       required min="1" max="999">
+                <label for="carbGrams" class="form-label">碳水克數</label>
+                <input type="number" class="form-control" id="carbGrams" th:field="*{carbGrams}" 
+                       min="1" max="999">
                 <div class="invalid-feedback">
-                    請輸入1-999之間的克數
+                    請填寫1-999之間的碳水克數或選擇份數
                 </div>
             </div>
 
@@ -111,12 +111,39 @@
             Array.prototype.slice.call(forms)
                 .forEach(function (form) {
                     form.addEventListener('submit', function (event) {
-                        if (!form.checkValidity()) {
-                            event.preventDefault()
-                            event.stopPropagation()
+                        // 自定義驗證：份數和碳水克數至少填寫一個
+                        const servingSize = form.querySelector('#servingSize').value;
+                        const carbGrams = form.querySelector('#carbGrams').value;
+                        
+                        if (!servingSize && !carbGrams) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            form.querySelector('#servingSize').classList.add('is-invalid');
+                            form.querySelector('#carbGrams').classList.add('is-invalid');
+                        } else {
+                            form.querySelector('#servingSize').classList.remove('is-invalid');
+                            form.querySelector('#carbGrams').classList.remove('is-invalid');
                         }
-                        form.classList.add('was-validated')
-                    }, false)
+
+                        if (!form.checkValidity()) {
+                            event.preventDefault();
+                            event.stopPropagation();
+                        }
+                        form.classList.add('was-validated');
+                    }, false);
+
+                    // 當其中一個欄位有值時，移除另一個欄位的錯誤提示
+                    form.querySelector('#servingSize').addEventListener('change', function() {
+                        if (this.value) {
+                            form.querySelector('#carbGrams').classList.remove('is-invalid');
+                        }
+                    });
+
+                    form.querySelector('#carbGrams').addEventListener('input', function() {
+                        if (this.value) {
+                            form.querySelector('#servingSize').classList.remove('is-invalid');
+                        }
+                    });
                 })
         })()
     </script>

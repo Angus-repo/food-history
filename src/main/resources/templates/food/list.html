@@ -56,7 +56,7 @@
                         <th scope="col">圖片</th>
                         <th scope="col">名稱</th>
                         <th scope="col">份數</th>
-                        <th scope="col">克數</th>
+                        <th scope="col">碳水克數</th>
                         <th scope="col">備註</th>
                         <th scope="col">操作</th>
                     </tr>
@@ -74,7 +74,7 @@
                         </td>
                         <td th:text="${food.name}"></td>
                         <td th:text="${food.servingSize}"></td>
-                        <td th:text="${food.grams}"></td>
+                        <td th:text="${food.carbGrams}"></td>
                         <td th:text="${food.notes}"></td>
                         <td>
                             <a th:href="@{/foods/{id}/edit(id=${food.id})}" class="btn btn-sm btn-outline-primary me-2">
