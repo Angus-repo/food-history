@@ -25,6 +25,7 @@ public class SecurityConfig {
                 .permitAll()
                 .and()
             .logout()
+                .logoutSuccessUrl("/login?logout")
                 .permitAll()
                 .and()
             .csrf()
@@ -32,7 +33,13 @@ public class SecurityConfig {
                 .and()
             .headers()
                 .frameOptions()
-                .sameOrigin();
+                .sameOrigin()
+                .and()
+            .sessionManagement()
+                .invalidSessionUrl("/login?session=invalid")
+                .maximumSessions(1)
+                .expiredUrl("/login?expired")
+                .maxSessionsPreventsLogin(true);
         
         return http.build();
     }

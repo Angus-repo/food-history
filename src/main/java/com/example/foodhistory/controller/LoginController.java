@@ -11,6 +11,11 @@ public class LoginController {
         return "login";
     }
     
+    @GetMapping("/login?logout")
+    public String logout() {
+        return "login";
+    }
+    
     @GetMapping("/")
     public String home() {
         return "redirect:/foods";
