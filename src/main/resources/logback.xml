@@ -1,0 +1,44 @@
+<configuration debug="false" scan="true" scanPeriod="10 seconds">
+	<!--<define name="JBRANCH_ROOT" class="com.systex.jbranch.platform.common.log.JBranchRootPropertyDefiner"/> -->
+	<property name="LOG_HOME" value="/home/asaburu/logs" scope="context" />
+	<property name="encoding" value="UTF-8" scope="context" />
+	<property name="maxSize" value="50MB" scope="context" />
+	<property name="defaultFileName" value="default" scope="context" />
+	<property name="pattern" value="[%d{yyyy/MM/dd HH:mm:ss.SSS}] [%thread] %-5level %logger{36}[%file:%line] [%X{$REQUEST_ID}] [%X{$USER_ID}] [%X{$TXN_ID}] [%X{$METHOD}] - %msg%n" scope="context" />
+	
+	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+		<withJansi>true</withJansi>
+		<encoder>
+			<pattern>%gray([%d{yyyy/MM/dd HH:mm:ss.SSS}]) %magenta([%thread]) %highlight(%-5level) %cyan(%logger{36}[%file:%line]) %gray([%X{$REQUEST_ID}] [%X{$USER_ID}] [%X{$TXN_ID}]) - %msg%n</pattern>
+			<charset>${encoding}</charset>
+		</encoder>
+	</appender>
+	<root>
+		<level value="INFO" />
+		<appender-ref ref="STDOUT" />
+	</root>
+	<logger name="com.example" additivity="false" level="DEBUG">
+		<appender-ref ref="STDOUT" />
+	</logger>
+	<logger name="com.angus" additivity="false" level="DEBUG">
+		<appender-ref ref="STDOUT" />
+	</logger>
+	
+	<!-- url display -->
+<!-- 	<logger name="org.springframework.web.context.support.XmlWebApplicationContext" level="TRACE" /> -->
+<!-- 	authentication info -->
+<!-- 	<logger name="org.springframework.security.web.access.intercept.FilterSecurityInterceptor" level="DEBUG" />  -->
+	<logger name="org.springframework.security.web.authentication.rememberme.TokenBasedRememberMeServices" level="DEBUG" />
+	<logger name="org.springframework.aop.interceptor.CustomizableTraceInterceptor" level="TRACE" />
+    <logger name="org.springframework.web.filter.CommonsRequestLoggingFilter" level="DEBUG" />
+<!-- 	jdbc connection info -->
+<!-- 	<logger name="org.hibernate.engine.jdbc.internal.LogicalConnectionImpl" level="TRACE" />  -->
+<!-- ignore hibernate load not found info -->
+<!-- 	<logger name="org.hibernate.event.def.DefaultLoadEventListener" level="WARN" /> -->
+	<logger name="org.hibernate.util.DTDEntityResolver" level="ERROR" />
+	<logger name="org.hibernate.SQL" level="DEBUG" />
+	<logger name="org.hibernate.type.descriptor.sql.BasicBinder" level="TRACE"/>
+<!-- 	<logger name="org.hibernate.type.descriptor.sql.BasicExtractor" level="TRACE"/> -->
+<!-- 	<logger name="org.hibernate.engine.QueryParameters" level="TRACE"/> -->
+<!-- 	<logger name="org.hibernate.engine.query.HQLQueryPlan" level="TRACE"/> -->
+</configuration>
