@@ -22,8 +22,14 @@ function previewImage(input) {
 // 刪除食物功能
 function deleteFood(id) {
     if (confirm('確定要刪除這筆食物記錄嗎？')) {
+        // 假設 CSRF token 存放在 meta tag 中
+        const token = document.querySelector('meta[name="_csrf"]').getAttribute('content');
+
         fetch('/foods/' + id, {
-            method: 'DELETE'
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': token
+            }
         }).then(response => {
             if (response.ok) {
                 window.location.href = '/foods';

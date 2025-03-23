@@ -6,27 +6,157 @@
     <title>食物清單</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css" rel="stylesheet">
+    <meta name="_csrf" content="${_csrf.token}">
     <style>
+        body {
+            background-color: #f8f9fa; /* 淺灰色背景 */
+        }
+        .container {
+            margin-top: 3rem;
+        }
         .food-image {
             width: 60px;
             height: 60px;
             object-fit: cover;
-            border-radius: 4px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         .search-box {
-            max-width: 400px;
+            max-width: 100%;
+            margin-bottom: 2rem;
         }
-        .table td {
+        .search-box .form-control {
+            border-radius: 8px 0 0 8px;
+            border: 1px solid #ced4da;
+            padding: 0.75rem 1rem;
+        }
+        .search-box .btn {
+            border-radius: 0 8px 8px 0;
+            background-color: #007bff;
+            border-color: #007bff;
+            color: #fff;
+        }
+        .search-box .btn:hover {
+            background-color: #0069d9;
+            border-color: #0062cc;
+        }
+        .table {
+            width: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .table thead {
+            background-color: #e9ecef;
+        }
+        .table th, .table td {
             vertical-align: middle;
+            padding: 0.75rem;
+            border-color: #dee2e6;
+        }
+        .table th:nth-child(1), .table td:nth-child(1) {
+            width: 80px;
+        }
+        .table th:nth-child(2), .table td:nth-child(2) {
+            width: 150px;
+        }
+        .table th:nth-child(3), .table td:nth-child(3) {
+            width: 100px;
+            text-align: right;
+        }
+        .table th:nth-child(4), .table td:nth-child(4) {
+            width: 100px;
+            text-align: right;
+        }
+        .table th:nth-child(5), .table td:nth-child(5) {
+            min-width: 200px;
+            width: auto;
+        }
+        .table th:nth-child(6), .table td:nth-child(6) {
+            width: 200px;
+        }
+        .btn-sm {
+            min-width: 80px;
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+        }
+        .btn-outline-primary {
+            color: #007bff;
+            border-color: #007bff;
+        }
+        .btn-outline-primary:hover {
+            background-color: #007bff;
+            color: #fff;
+        }
+        .btn-outline-danger {
+            color: #dc3545;
+            border-color: #dc3545;
+        }
+        .btn-outline-danger:hover {
+            background-color: #dc3545;
+            color: #fff;
+        }
+        .d-flex {
+            align-items: center;
+        }
+        @media (max-width: 768px) {
+            .table-responsive {
+                margin: 0 -12px;
+            }
+            .food-card {
+                border: 1px solid rgba(0,0,0,.125);
+                border-radius: .25rem;
+                padding: 1rem;
+                margin-bottom: 1rem;
+            }
+            .food-card-header {
+                display: flex;
+                align-items: center;
+                margin-bottom: 1rem;
+            }
+            .food-card-header .food-image {
+                margin-right: 1rem;
+            }
+            .food-card-body {
+                font-size: 0.9rem;
+            }
+            .food-card-body .value-highlight {
+                font-size: 1.2rem;
+                font-weight: 600;
+                color: #2c3e50;
+            }
+            .food-card-body .label-text {
+                color: #6c757d;
+                font-size: 0.9rem;
+            }
+            .food-card-footer {
+                margin-top: 1rem;
+                display: flex;
+                justify-content: flex-end;
+            }
+            .desktop-table {
+                display: none;
+            }
+            .mobile-cards {
+                display: block;
+            }
+        }
+        @media (min-width: 769px) {
+            .desktop-table {
+                display: table;
+            }
+            .mobile-cards {
+                display: none;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container mt-4">
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>食物清單</h2>
-            <div>
-                <a href="/logout" class="btn btn-outline-secondary me-2">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
+            <h2 class="mb-3 mb-md-0">食物清單</h2>
+            <div class="d-flex gap-2">
+                <a href="/logout" class="btn btn-outline-secondary">
                     <i class="bi bi-box-arrow-right"></i> 登出
                 </a>
                 <a href="/foods/new" class="btn btn-primary">
@@ -34,9 +164,8 @@
                 </a>
             </div>
         </div>
-
-        <div class="row mb-4">
-            <div class="col-md-6">
+        <div class="row">
+            <div class="col-12">
                 <div class="search-box">
                     <div class="input-group">
                         <input type="text" class="form-control" id="searchKeyword" 
@@ -48,15 +177,15 @@
                 </div>
             </div>
         </div>
-
-        <div class="table-responsive">
+        <!-- 桌面版表格 -->
+        <div class="col-12 table-responsive desktop-table">
             <table class="table table-hover">
                 <thead class="table-light">
                     <tr>
                         <th scope="col">圖片</th>
                         <th scope="col">名稱</th>
                         <th scope="col">份數</th>
-                        <th scope="col">碳水克數</th>
+                        <th scope="col">碳水</th>
                         <th scope="col">備註</th>
                         <th scope="col">操作</th>
                     </tr>
@@ -77,12 +206,14 @@
                         <td th:text="${food.carbGrams}"></td>
                         <td th:text="${food.notes}"></td>
                         <td>
-                            <a th:href="@{/foods/{id}/edit(id=${food.id})}" class="btn btn-sm btn-outline-primary me-2">
-                                <i class="bi bi-pencil"></i> 編輯
-                            </a>
-                            <button class="btn btn-sm btn-outline-danger" th:onclick="'deleteFood(' + ${food.id} + ')'">
-                                <i class="bi bi-trash"></i> 刪除
-                            </button>
+                            <div class="d-flex gap-2">
+                                <a th:href="@{/foods/{id}/edit(id=${food.id})}" class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-pencil"></i> 編輯
+                                </a>
+                                <button class="btn btn-sm btn-outline-danger" th:onclick="'deleteFood(' + ${food.id} + ')'">
+                                    <i class="bi bi-trash"></i> 刪除
+                                </button>
+                            </div>
                         </td>
                     </tr>
                     <tr th:if="${#lists.isEmpty(foods)}">
@@ -96,8 +227,52 @@
                 </tbody>
             </table>
         </div>
+        <!-- 手機版卡片 -->
+        <div class="mobile-cards">
+            <div th:if="${#lists.isEmpty(foods)}" class="text-center py-4">
+                <div class="text-muted">
+                    <i class="bi bi-inbox-fill"></i>
+                    <p class="mt-2">目前沒有食物記錄</p>
+                </div>
+            </div>
+            <div th:each="food, iterStat : ${foods}" class="food-card">
+                <div class="food-card-header">
+                    <img th:if="${food.image != null}" 
+                         th:src="${base64Images[iterStat.index]}"
+                         class="food-image"
+                         alt="食物圖片">
+                    <div th:if="${food.image == null}" class="food-image bg-light d-flex align-items-center justify-content-center">
+                        <i class="bi bi-image text-secondary"></i>
+                    </div>
+                    <h5 class="mb-0" th:text="${food.name}"></h5>
+                </div>
+                <div class="food-card-body">
+                    <div class="row">
+                        <div class="col-6">
+                            <div class="label-text">份數：</div>
+                            <div class="value-highlight" th:text="${food.servingSize}"></div>
+                        </div>
+                        <div class="col-6">
+                            <div class="label-text">碳水克數：</div>
+                            <div class="value-highlight" th:text="${food.carbGrams}"></div>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <small class="text-muted">備註：</small>
+                        <span th:text="${food.notes}"></span>
+                    </div>
+                </div>
+                <div class="food-card-footer">
+                    <a th:href="@{/foods/{id}/edit(id=${food.id})}" class="btn btn-sm btn-outline-primary me-2">
+                        <i class="bi bi-pencil"></i> 編輯
+                    </a>
+                    <button class="btn btn-sm btn-outline-danger" th:onclick="'deleteFood(' + ${food.id} + ')'">
+                        <i class="bi bi-trash"></i> 刪除
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/js/food.js"></script>
 </body>

@@ -9,6 +9,8 @@ import org.aspectj.lang.annotation.Before;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.multipart.support.StandardMultipartHttpServletRequest;
 
 @Aspect
 @Component
@@ -18,7 +20,25 @@ public class LoggingAspect {
 
     @Before("execution(* com.example.foodhistory.controller..*(..))")
     public void logBefore(JoinPoint joinPoint) {
-        logger.info("Entering method: {} with arguments: {}", joinPoint.getSignature().toShortString(), joinPoint.getArgs());
+        Object[] args = joinPoint.getArgs();
+        Object[] logArgs = new Object[args.length];
+        
+        for (int i = 0; i < args.length; i++) {
+            if (args[i] instanceof StandardMultipartHttpServletRequest) {
+                logArgs[i] = "[MultipartRequest]";
+            } else if (args[i] instanceof MultipartFile) {
+                MultipartFile file = (MultipartFile) args[i];
+                logArgs[i] = String.format("[File:%s, Size:%d]", 
+                    file.getOriginalFilename(), 
+                    file.getSize());
+            } else {
+                logArgs[i] = args[i];
+            }
+        }
+        
+        logger.info("Entering method: {} with arguments: {}", 
+                   joinPoint.getSignature().toShortString(), 
+                   logArgs);
     }
 
     @AfterReturning(pointcut = "execution(* com.example.foodhistory.controller..*(..))", returning = "result")

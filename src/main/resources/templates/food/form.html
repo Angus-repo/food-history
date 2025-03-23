@@ -6,6 +6,91 @@
     <title th:text="${food.id == null ? '新增食物' : '編輯食物'}">新增/編輯食物</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa; /* 淺灰色背景 */
+        }
+        .container {
+            margin-top: 3rem;
+        }
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        .page-title {
+            font-size: 2rem;
+            color: #343a40;
+        }
+        .form-label {
+            font-weight: 500;
+            color: #495057;
+        }
+        .form-control, .form-select {
+            border-radius: 8px;
+            border: 1px solid #ced4da;
+            padding: 0.75rem 1rem;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #80bdff;
+            box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+        }
+        .btn-primary {
+            background-color: #007bff;
+            border-color: #007bff;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+        }
+        .btn-primary:hover {
+            background-color: #0069d9;
+            border-color: #0062cc;
+        }
+        .btn-secondary {
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+        }
+        .btn-danger {
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+        }
+        #imagePreview {
+            max-width: 200px;
+            border-radius: 8px;
+            margin-top: 1rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        @media (max-width: 768px) {
+            .form-control, .form-select {
+                font-size: 16px; /* 防止iOS縮放 */
+                height: 48px; /* 增加觸控區域 */
+            }
+            .btn {
+                padding: 12px 20px;
+                font-size: 16px;
+            }
+            textarea.form-control {
+                height: auto;
+            }
+            .page-header {
+                flex-direction: column;
+                gap: 1rem;
+            }
+            .page-title {
+                text-align: center;
+                width: 100%;
+            }
+            .page-actions {
+                display: flex;
+                width: 100%;
+                justify-content: space-between;
+            }
+            #imagePreview {
+                max-width: 100%;
+                height: auto;
+            }
+        }
+    </style>
 </head>
 <body>
     <div class="container mt-4">
@@ -19,37 +104,35 @@
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
 
-        <div class="row mb-3">
-            <div class="col">
+        <div class="d-flex mb-4 page-header">
+            <div class="page-actions">
                 <a href="/foods" class="btn btn-outline-secondary">
                     <i class="bi bi-arrow-left"></i> 返回列表
                 </a>
-            </div>
-            <div class="col text-center">
-                <h2 th:text="${food.id == null ? '新增食物' : '編輯食物'}">新增/編輯食物</h2>
-            </div>
-            <div class="col text-end">
                 <button th:if="${food.id != null}" type="button" class="btn btn-danger" 
                         th:onclick="'deleteFood(' + ${food.id} + ')'">
                     <i class="bi bi-trash"></i> 刪除
                 </button>
+            </div>
+            <div class="page-title">
+                <h2 class="mb-0" th:text="${food.id == null ? '新增食物' : '編輯食物'}">新增/編輯食物</h2>
             </div>
         </div>
 
         <form th:action="@{/foods}" method="post" enctype="multipart/form-data" th:object="${food}" class="needs-validation" novalidate>
             <input type="hidden" th:field="*{id}">
             
-            <div class="mb-3">
+            <div class="mb-4">
                 <label for="imageFile" class="form-label">食物圖片</label>
                 <input type="file" class="form-control" id="imageFile" name="imageFile" 
                        accept="image/*" onchange="previewImage(this)" capture="environment">
                 <div class="form-text">支援 JPEG、PNG 或 GIF 格式的圖片</div>
                 <img th:if="${imageUrl != null}" 
                      th:src="${imageUrl}"
-                     class="mt-2" style="max-width: 200px;" id="imagePreview">
+                     class="mt-2 rounded" style="max-width: 200px;" id="imagePreview">
             </div>
 
-            <div class="mb-3">
+            <div class="mb-4">
                 <label for="name" class="form-label">食物名稱</label>
                 <input type="text" class="form-control" id="name" th:field="*{name}" 
                        required maxlength="30">
@@ -58,43 +141,33 @@
                 </div>
             </div>
 
-            <div class="mb-3">
+            <div class="mb-4">
                 <label for="servingSize" class="form-label">份數</label>
-                <select class="form-select" id="servingSize" th:field="*{servingSize}">
-                    <option value="">請選擇份數</option>
-                    <option value="1">1份</option>
-                    <option value="1.5">1.5份</option>
-                    <option value="2">2份</option>
-                    <option value="2.5">2.5份</option>
-                    <option value="3">3份</option>
-                    <option value="3.5">3.5份</option>
-                    <option value="4">4份</option>
-                    <option value="4.5">4.5份</option>
-                    <option value="5">5份</option>
-                </select>
+                <input type="number" class="form-control" id="servingSize" th:field="*{servingSize}" 
+                       min="0" max="1" step="0.01">
                 <div class="invalid-feedback">
-                    請選擇份數或填寫碳水克數
+                    請填寫0-1之間的小數（最多2位小數）或填寫碳水克數
                 </div>
             </div>
 
-            <div class="mb-3">
-                <label for="carbGrams" class="form-label">碳水克數</label>
+            <div class="mb-4">
+                <label for="carbGrams" class="form-label">碳水</label>
                 <input type="number" class="form-control" id="carbGrams" th:field="*{carbGrams}" 
                        min="1" max="999">
                 <div class="invalid-feedback">
-                    請填寫1-999之間的碳水克數或選擇份數
+                    請填寫1-999之間的碳水克數或填寫份數
                 </div>
             </div>
 
-            <div class="mb-3">
+            <div class="mb-4">
                 <label for="notes" class="form-label">備註</label>
                 <textarea class="form-control" id="notes" th:field="*{notes}" 
                           maxlength="100" rows="3"></textarea>
                 <div class="form-text">最多100字</div>
             </div>
 
-            <div class="mb-3">
-                <button type="submit" class="btn btn-primary">
+            <div class="mb-4">
+                <button type="submit" class="btn btn-primary w-100">
                     <i class="bi bi-save"></i> 儲存
                 </button>
             </div>
