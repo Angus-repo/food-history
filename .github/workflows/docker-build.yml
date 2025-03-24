@@ -26,6 +26,9 @@ jobs:
     - name: Build with Maven
       run: mvn clean package -DskipTests
 
+    - name: print context
+      run: pwd && ls -al
+
     - name: Copy jar to Docker context
       run: cp target/food-history-*.jar food-history.jar
         
