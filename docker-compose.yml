@@ -9,4 +9,4 @@ services:
       - SPRING_PROFILES_ACTIVE=prod
     restart: always
     volumes:
-      - ./data:/app
+      - ./data:/app/db
