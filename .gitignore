@@ -1,6 +1,6 @@
-!.github/.workflows
-
 .*
+!.github/
+!.github/workflows/
 /target
 /logs
 fooddb.*.db
