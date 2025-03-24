@@ -1,6 +1,7 @@
 version: '3.8'
 services:
   food-history:
+    container_name: food-history
     image: lh0528/food-history:latest
     ports:
       - "8080:8080"

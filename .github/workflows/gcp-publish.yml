@@ -23,4 +23,5 @@ jobs:
             cd food-history
             wget https://raw.githubusercontent.com/Angus-repo/food-history/main/docker-compose.yml
             docker-compose down
+            docker rm -f $(docker ps -aq --filter name=food-history)
             docker-compose up -d
