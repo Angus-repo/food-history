@@ -2,7 +2,7 @@ FROM openjdk:17-jdk-slim
 
 WORKDIR /app
 
-RUN ls -l
+RUN pwd
 
 COPY food-history.jar app.jar
 
