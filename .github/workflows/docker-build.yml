@@ -27,7 +27,7 @@ jobs:
       run: mvn clean package -DskipTests
 
     - name: print context
-      run: pwd && ls -al
+      run: ls -al target
 
     - name: Copy jar to Docker context
       run: cp target/food-history-*.jar food-history.jar
