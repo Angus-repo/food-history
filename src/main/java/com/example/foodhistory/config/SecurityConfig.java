@@ -7,6 +7,7 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
 @EnableWebSecurity
@@ -22,10 +23,15 @@ public class SecurityConfig {
                 .and()
             .formLogin()
                 .loginPage("/login")
+                .defaultSuccessUrl("/", true)
                 .permitAll()
                 .and()
             .logout()
+                .logoutRequestMatcher(new AntPathRequestMatcher("/logout", "GET"))
                 .logoutSuccessUrl("/login?logout")
+                .invalidateHttpSession(true)
+                .clearAuthentication(true)
+                .deleteCookies("JSESSIONID")
                 .permitAll()
                 .and()
             .csrf()
@@ -36,10 +42,10 @@ public class SecurityConfig {
                 .sameOrigin()
                 .and()
             .sessionManagement()
-                .invalidSessionUrl("/login?session=invalid")
+                .invalidSessionUrl("/login")
+                .sessionFixation().newSession()
                 .maximumSessions(1)
-                .expiredUrl("/login?expired")
-                .maxSessionsPreventsLogin(true);
+                .expiredUrl("/login?expired");
         
         return http.build();
     }
