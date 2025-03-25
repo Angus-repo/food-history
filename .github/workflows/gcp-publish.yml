@@ -18,10 +18,8 @@ jobs:
           username: ${{ secrets.GCP_USERNAME }}
           key: ${{ secrets.GCP_SSH_KEY }}
           script: |
-            rm -rf food-history
-            mkdir food-history
+            mkdir -p food-history
             cd food-history
             wget https://raw.githubusercontent.com/Angus-repo/food-history/main/docker-compose.yml
-            docker-compose down
-            docker images -q food-history:latest | grep -q . && docker rmi food-history:latest || echo "Image food-history:latest does not exist"
+            docker-compose down --rmi all
             docker-compose up -d
