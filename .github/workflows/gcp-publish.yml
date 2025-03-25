@@ -23,5 +23,5 @@ jobs:
             cd food-history
             wget https://raw.githubusercontent.com/Angus-repo/food-history/main/docker-compose.yml
             docker-compose down
-            docker rm -f $(docker ps -aq --filter name=food-history)
+            docker images -q food-history:latest | grep -q . && docker rmi food-history:latest || echo "Image food-history:latest does not exist"
             docker-compose up -d
