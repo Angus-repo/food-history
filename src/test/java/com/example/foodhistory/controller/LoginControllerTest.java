@@ -1,9 +1,8 @@
 package com.example.foodhistory.controller;
 
-import org.junit.jupiter.api.Test;
-import org.springframework.ui.Model;
-
 import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import org.junit.jupiter.api.Test;
 
 public class LoginControllerTest {
 
