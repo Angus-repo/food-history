@@ -20,6 +20,7 @@ jobs:
           script: |
             mkdir -p food-history
             cd food-history
+            rm -rf docker-compose.yml
             wget https://raw.githubusercontent.com/Angus-repo/food-history/main/docker-compose.yml
             docker-compose down --rmi all
             docker-compose up -d
