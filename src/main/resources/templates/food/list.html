@@ -3,277 +3,997 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>食物清單</title>
+    <title>食物列表 - 食物歷史</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css" rel="stylesheet">
-    <meta name="_csrf" content="${_csrf.token}">
-    <style>
-        body {
-            background-color: #f8f9fa; /* 淺灰色背景 */
-        }
-        .container {
-            margin-top: 3rem;
-        }
-        .food-image {
-            width: 60px;
-            height: 60px;
-            object-fit: cover;
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        .search-box {
-            max-width: 100%;
-            margin-bottom: 2rem;
-        }
-        .search-box .form-control {
-            border-radius: 8px 0 0 8px;
-            border: 1px solid #ced4da;
-            padding: 0.75rem 1rem;
-        }
-        .search-box .btn {
-            border-radius: 0 8px 8px 0;
-            background-color: #007bff;
-            border-color: #007bff;
-            color: #fff;
-        }
-        .search-box .btn:hover {
-            background-color: #0069d9;
-            border-color: #0062cc;
-        }
-        .table {
-            width: 100%;
-            border-radius: 8px;
-            overflow: hidden;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        .table thead {
-            background-color: #e9ecef;
-        }
-        .table th, .table td {
-            vertical-align: middle;
-            padding: 0.75rem;
-            border-color: #dee2e6;
-        }
-        .table th:nth-child(1), .table td:nth-child(1) {
-            width: 80px;
-        }
-        .table th:nth-child(2), .table td:nth-child(2) {
-            width: 150px;
-        }
-        .table th:nth-child(3), .table td:nth-child(3) {
-            width: 100px;
-            text-align: right;
-        }
-        .table th:nth-child(4), .table td:nth-child(4) {
-            width: 100px;
-            text-align: right;
-        }
-        .table th:nth-child(5), .table td:nth-child(5) {
-            min-width: 200px;
-            width: auto;
-        }
-        .table th:nth-child(6), .table td:nth-child(6) {
-            width: 200px;
-        }
-        .btn-sm {
-            min-width: 80px;
-            border-radius: 8px;
-            padding: 0.5rem 1rem;
-        }
-        .btn-outline-primary {
-            color: #007bff;
-            border-color: #007bff;
-        }
-        .btn-outline-primary:hover {
-            background-color: #007bff;
-            color: #fff;
-        }
-        .btn-outline-danger {
-            color: #dc3545;
-            border-color: #dc3545;
-        }
-        .btn-outline-danger:hover {
-            background-color: #dc3545;
-            color: #fff;
-        }
-        .d-flex {
-            align-items: center;
-        }
-        @media (max-width: 768px) {
-            .table-responsive {
-                margin: 0 -12px;
-            }
-            .food-card {
-                border: 1px solid rgba(0,0,0,.125);
-                border-radius: .25rem;
-                padding: 1rem;
-                margin-bottom: 1rem;
-            }
-            .food-card-header {
-                display: flex;
-                align-items: center;
-                margin-bottom: 1rem;
-            }
-            .food-card-header .food-image {
-                margin-right: 1rem;
-            }
-            .food-card-body {
-                font-size: 0.9rem;
-            }
-            .food-card-body .value-highlight {
-                font-size: 1.2rem;
-                font-weight: 600;
-                color: #2c3e50;
-            }
-            .food-card-body .label-text {
-                color: #6c757d;
-                font-size: 0.9rem;
-            }
-            .food-card-footer {
-                margin-top: 1rem;
-                display: flex;
-                justify-content: flex-end;
-            }
-            .desktop-table {
-                display: none;
-            }
-            .mobile-cards {
-                display: block;
-            }
-        }
-        @media (min-width: 769px) {
-            .desktop-table {
-                display: table;
-            }
-            .mobile-cards {
-                display: none;
-            }
-        }
-    </style>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="/css/main.css" rel="stylesheet">
+    <link href="/css/recommendations.css" rel="stylesheet">
 </head>
 <body>
-    <div class="container mt-4">
-        <div class="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-4">
-            <h2 class="mb-3 mb-md-0">食物清單</h2>
-            <div class="d-flex gap-2">
-                <a href="/logout" class="btn btn-outline-secondary">
-                    <i class="bi bi-box-arrow-right"></i> 登出
-                </a>
-                <a href="/foods/new" class="btn btn-primary">
-                    <i class="bi bi-plus-lg"></i> 新增食物
+    <div class="container fade-in">
+        <!-- 頁面標題區域 -->
+        <header class="page-header">
+            <h1 class="page-title">
+                <i class="bi bi-journal-bookmark"></i>
+                我的食物歷史
+            </h1>
+            <div class="flex gap-3">
+                <a href="/foods/new" class="btn btn-primary btn-lg">
+                    <i class="bi bi-plus-lg"></i>
+                    新增食物
                 </a>
             </div>
+        </header>
+
+        <!-- 提示訊息 -->
+        <div th:if="${success}" class="alert alert-success">
+            <i class="bi bi-check-circle"></i>
+            <span th:text="${success}"></span>
         </div>
-        <div class="row">
-            <div class="col-12">
-                <div class="search-box">
-                    <div class="input-group">
-                        <input type="text" class="form-control" id="searchKeyword" 
-                               placeholder="搜尋食物..." th:value="${keyword}">
-                        <button class="btn btn-outline-primary" type="button" onclick="searchFoods()">
+        
+        <div th:if="${error}" class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle"></i>
+            <span th:text="${error}"></span>
+        </div>
+
+        <!-- 搜尋區域 -->
+        <div class="search-container">
+            <form method="get" action="/foods" class="flex gap-3">
+                <div class="flex-1" style="position: relative;">
+                    <i class="search-icon bi bi-search"></i>
+                    <input type="text" 
+                           name="keyword" 
+                           th:value="${keyword}"
+                           class="search-input" 
+                           placeholder="搜尋食物名稱或備註..."
+                           autocomplete="off">
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-search"></i>
+                    搜尋
+                </button>
+                <a th:if="${keyword != null and keyword != ''}" 
+                   href="/foods" 
+                   class="btn btn-secondary">
+                    <i class="bi bi-x-lg"></i>
+                    清除
+                </a>
+            </form>
+            
+            <!-- 搜尋推薦 -->
+            <div th:if="${keyword == null or keyword == ''}" class="search-recommendations">
+                
+                <!-- 近期搜尋 -->
+                <div th:if="${!#lists.isEmpty(recentSearches)}" class="recommendations-section">
+                    <div class="section-header">
+                        <h4 class="recommendation-title">
+                            <i class="bi bi-clock-history"></i>
+                            近期搜尋
+                        </h4>
+                        <button type="button" class="simple-view-all-btn" onclick="showRecentSearches()">
+                            完整搜尋記錄
+                        </button>
+                    </div>
+                    <div class="recommendations-container">
+                        <button th:each="search : ${recentSearches}" 
+                                type="button" 
+                                class="recommendation-tag recent-search"
+                                th:data-keyword="${search}"
+                                onclick="searchFood(this.dataset.keyword)">
                             <i class="bi bi-search"></i>
+                            <span th:text="${search}">搜尋詞</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <!-- 最愛推薦 -->
+                <div th:if="${!#lists.isEmpty(favoriteRecommendations)}" class="recommendations-section">
+                    <div class="section-header">
+                        <h4 class="recommendation-title">
+                            <i class="bi bi-star-fill text-warning-500"></i>
+                            我的最愛
+                        </h4>
+                        <button type="button" class="simple-view-all-btn" onclick="showAllFavorites()">
+                            完整我的最愛
+                        </button>
+                    </div>
+                    <div class="recommendations-container">
+                        <button th:each="food : ${favoriteRecommendations}" 
+                                type="button" 
+                                class="recommendation-tag favorite-item"
+                                th:data-keyword="${food.name}"
+                                onclick="searchFood(this.dataset.keyword)">
+                            <i class="bi bi-star-fill"></i>
+                            <span th:text="${food.name}">食物名稱</span>
                         </button>
                     </div>
                 </div>
             </div>
         </div>
-        <!-- 桌面版表格 -->
-        <div class="col-12 table-responsive desktop-table">
-            <table class="table table-hover">
-                <thead class="table-light">
-                    <tr>
-                        <th scope="col">圖片</th>
-                        <th scope="col">名稱</th>
-                        <th scope="col">系數</th>
-                        <th scope="col">碳水</th>
-                        <th scope="col">備註</th>
-                        <th scope="col">操作</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr th:each="food, iterStat : ${foods}">
-                        <td>
-                            <img th:if="${food.image != null}" 
-                                 th:src="${base64Images[iterStat.index]}"
-                                 class="food-image"
-                                 alt="食物圖片">
-                            <div th:if="${food.image == null}" class="food-image bg-light d-flex align-items-center justify-content-center">
-                                <i class="bi bi-image text-secondary"></i>
-                            </div>
-                        </td>
-                        <td th:text="${food.name}"></td>
-                        <td th:text="${food.servingSize}"></td>
-                        <td th:text="${food.carbGrams}"></td>
-                        <td th:text="${food.notes}"></td>
-                        <td>
-                            <div class="d-flex gap-2">
-                                <a th:href="@{/foods/{id}/edit(id=${food.id})}" class="btn btn-sm btn-outline-primary">
-                                    <i class="bi bi-pencil"></i> 編輯
-                                </a>
-                                <button class="btn btn-sm btn-outline-danger" th:onclick="'deleteFood(' + ${food.id} + ')'">
-                                    <i class="bi bi-trash"></i> 刪除
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr th:if="${#lists.isEmpty(foods)}">
-                        <td colspan="6" class="text-center py-4">
-                            <div class="text-muted">
-                                <i class="bi bi-inbox-fill"></i>
-                                <p class="mt-2">目前沒有食物記錄</p>
-                            </div>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-        <!-- 手機版卡片 -->
-        <div class="mobile-cards">
-            <div th:if="${#lists.isEmpty(foods)}" class="text-center py-4">
-                <div class="text-muted">
-                    <i class="bi bi-inbox-fill"></i>
-                    <p class="mt-2">目前沒有食物記錄</p>
+
+        <!-- 統計資訊 -->
+        <div class="card" style="margin-bottom: var(--space-8);">
+            <div class="card-body">
+                <div class="stats-container">
+                    <div class="stats-main">
+                        <div class="stats-item">
+                            <i class="bi bi-collection text-primary-500" style="font-size: var(--font-size-xl);"></i>
+                            <span class="font-medium">總共</span>
+                            <span class="font-bold text-primary-600" th:text="${totalElements}">0</span>
+                            <span>項</span>
+                        </div>
+                        <div class="stats-item">
+                            <i class="bi bi-files text-secondary-500"></i>
+                            <span class="text-secondary-600">
+                                <span th:text="${currentPage + 1}">1</span>/<span th:text="${totalPages}">1</span>
+                            </span>
+                        </div>
+                    </div>
+                    <div th:if="${keyword != null and keyword != ''}" class="stats-filter">
+                        <i class="bi bi-funnel text-secondary-500"></i>
+                        <span class="text-secondary-600">搜尋</span>
+                    </div>
                 </div>
             </div>
-            <div th:each="food, iterStat : ${foods}" class="food-card">
-                <div class="food-card-header">
-                    <img th:if="${food.image != null}" 
+        </div>
+
+        <!-- 食物卡片網格 -->
+        <div th:if="${#lists.isEmpty(foods)}" class="text-center" style="padding: var(--space-16) 0;">
+            <i class="bi bi-inbox" style="font-size: 4rem; color: var(--secondary-400); margin-bottom: var(--space-4);"></i>
+            <h3 style="color: var(--secondary-600); margin-bottom: var(--space-2);">
+                <span th:if="${keyword != null and keyword != ''}">找不到相關食物</span>
+                <span th:unless="${keyword != null and keyword != ''}">還沒有任何食物記錄</span>
+            </h3>
+            <p style="color: var(--secondary-500); margin-bottom: var(--space-6);">
+                <span th:if="${keyword != null and keyword != ''}">試試其他關鍵字或</span>
+                開始記錄您的第一個食物吧！
+            </p>
+            <a href="/foods/new" class="btn btn-primary btn-lg">
+                <i class="bi bi-plus-lg"></i>
+                新增第一個食物
+            </a>
+        </div>
+
+        <div th:unless="${#lists.isEmpty(foods)}" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div th:each="food, iterStat : ${foods}" 
+                 class="food-card card slide-in clickable-card"
+                 th:style="'animation-delay: ' + ${iterStat.index * 0.1} + 's'"
+                 th:onclick="'window.location.href=\'/foods/' + ${food.id} + '/edit\''">
+                
+                <!-- 食物圖片 -->
+                <div class="relative" style="height: 200px; overflow: hidden;">
+                    <img th:if="${base64Images[iterStat.index] != null}" 
                          th:src="${base64Images[iterStat.index]}"
-                         class="food-image"
-                         alt="食物圖片">
-                    <div th:if="${food.image == null}" class="food-image bg-light d-flex align-items-center justify-content-center">
-                        <i class="bi bi-image text-secondary"></i>
+                         class="food-card-image"
+                         th:alt="${food.name}">
+                    <div th:unless="${base64Images[iterStat.index] != null}" 
+                         class="food-card-image flex items-center justify-center"
+                         style="background: linear-gradient(135deg, var(--secondary-100) 0%, var(--secondary-200) 100%);">
+                        <i class="bi bi-image" style="font-size: 3rem; color: var(--secondary-400);"></i>
                     </div>
-                    <h5 class="mb-0" th:text="${food.name}"></h5>
-                </div>
-                <div class="food-card-body">
-                    <div class="row">
-                        <div class="col-6">
-                            <div class="label-text">系數：</div>
-                            <div class="value-highlight" th:text="${food.servingSize}"></div>
-                        </div>
-                        <div class="col-6">
-                            <div class="label-text">碳水克數：</div>
-                            <div class="value-highlight" th:text="${food.carbGrams}"></div>
+                    
+                    <!-- 編輯提示 -->
+                    <div class="edit-overlay">
+                        <div class="edit-hint">
+                            <i class="bi bi-pencil-square"></i>
+                            <span>點擊編輯</span>
                         </div>
                     </div>
-                    <div class="mt-2">
-                        <small class="text-muted">備註：</small>
-                        <span th:text="${food.notes}"></span>
+                </div>
+
+                <!-- 食物資訊 -->
+                <div class="food-card-content">
+                    <h3 class="food-card-title">
+                        <span class="food-name" th:text="${food.name}">食物名稱</span>
+                        <span th:if="${food.quantity != null and food.quantity > 0 and food.unit != null and food.unit != ''}" 
+                              class="food-unit">
+                            (<span th:text="${food.quantity % 1 == 0 ? T(java.lang.Math).round(food.quantity) : food.quantity}"></span><span th:text="${food.unit}"></span>)
+                        </span>
+                        <span th:if="${(food.quantity == null or food.quantity <= 0) and food.unit != null and food.unit != ''}" 
+                              class="food-unit">
+                            (<span th:text="${food.unit}"></span>)
+                        </span>
+                    </h3>
+                    
+                    <!-- 碳水化合物資訊 -->
+                    <div class="food-card-carb-info">
+                        <!-- 如果有比例，顯示比例資訊 -->
+                        <div th:if="${food.servingSize != null and food.servingSize != ''}" class="carb-info-item">
+                            <div class="carb-info-label">
+                                <i class="bi bi-percent text-primary-500"></i>
+                                <span>碳水比例</span>
+                            </div>
+                            <div class="carb-info-value primary">
+                                <span th:text="${food.servingSize}">0.23</span>
+                                <small>比例值</small>
+                            </div>
+                        </div>
+                        
+                        <!-- 如果有具體克數，顯示克數資訊 -->
+                        <div th:if="${food.carbGrams != null}" class="carb-info-item">
+                            <div class="carb-info-label">
+                                <i class="bi bi-graph-up text-success-500"></i>
+                                <span>碳水含量</span>
+                            </div>
+                            <div class="carb-info-value success">
+                                <span th:text="${food.carbGrams} + 'g'">25g</span>
+                                <small>此份食物</small>
+                            </div>
+                        </div>
+                        
+                        <!-- 如果兩者都沒有 -->
+                        <div th:if="${(food.servingSize == null or food.servingSize == '') and food.carbGrams == null}" class="carb-info-item">
+                            <div class="carb-info-empty">
+                                <i class="bi bi-dash-circle text-secondary-400"></i>
+                                <span class="text-secondary-500">未設定碳水資訊</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 備註資訊 -->
+                    <div th:if="${food.notes != null and food.notes != ''}" class="food-card-notes-section">
+                        <div class="notes-label">
+                            <i class="bi bi-chat-text text-secondary-500"></i>
+                            <span>備註</span>
+                        </div>
+                        <p class="food-card-notes" th:text="${food.notes}">食物備註...</p>
+                    </div>
+                    
+                    <!-- 操作提示 -->
+                    <div class="food-card-actions">
+                        <div class="edit-prompt">
+                            <i class="bi bi-hand-index text-primary-500"></i>
+                            <span class="text-primary-600">點擊卡片即可編輯</span>
+                        </div>
+                        <button type="button" 
+                                class="btn btn-outline-danger btn-sm"
+                                th:onclick="'event.stopPropagation(); deleteFood(' + ${food.id} + ')'"
+                                title="刪除">
+                            <i class="bi bi-trash"></i>
+                        </button>
                     </div>
                 </div>
-                <div class="food-card-footer">
-                    <a th:href="@{/foods/{id}/edit(id=${food.id})}" class="btn btn-sm btn-outline-primary me-2">
-                        <i class="bi bi-pencil"></i> 編輯
-                    </a>
-                    <button class="btn btn-sm btn-outline-danger" th:onclick="'deleteFood(' + ${food.id} + ')'">
-                        <i class="bi bi-trash"></i> 刪除
-                    </button>
+            </div>
+        </div>
+
+        <!-- 分頁導航 -->
+        <div th:if="${totalPages > 1}" class="pagination-container">
+            <div class="pagination">
+                <!-- 上一頁 -->
+                <a th:if="${hasPrevious}" 
+                   th:href="@{/foods(page=${currentPage - 1}, size=12, keyword=${keyword})}"
+                   class="pagination-btn pagination-prev">
+                    <i class="bi bi-chevron-left"></i>
+                    上一頁
+                </a>
+                
+                <!-- 頁碼 -->
+                <div class="pagination-numbers">
+                    <!-- 第一頁 -->
+                    <a th:if="${currentPage > 2}" 
+                       th:href="@{/foods(page=0, size=12, keyword=${keyword})}"
+                       class="pagination-number">1</a>
+                    
+                    <!-- 省略號 -->
+                    <span th:if="${currentPage > 3}" class="pagination-ellipsis">...</span>
+                    
+                    <!-- 前一頁 -->
+                    <a th:if="${currentPage > 0}" 
+                       th:href="@{/foods(page=${currentPage - 1}, size=12, keyword=${keyword})}"
+                       class="pagination-number" 
+                       th:text="${currentPage}">1</a>
+                    
+                    <!-- 當前頁 -->
+                    <span class="pagination-number pagination-current" th:text="${currentPage + 1}">1</span>
+                    
+                    <!-- 下一頁 -->
+                    <a th:if="${currentPage < totalPages - 1}" 
+                       th:href="@{/foods(page=${currentPage + 1}, size=12, keyword=${keyword})}"
+                       class="pagination-number" 
+                       th:text="${currentPage + 2}">3</a>
+                    
+                    <!-- 省略號 -->
+                    <span th:if="${currentPage < totalPages - 4}" class="pagination-ellipsis">...</span>
+                    
+                    <!-- 最後一頁 -->
+                    <a th:if="${currentPage < totalPages - 3}" 
+                       th:href="@{/foods(page=${totalPages - 1}, size=12, keyword=${keyword})}"
+                       class="pagination-number" 
+                       th:text="${totalPages}">5</a>
+                </div>
+                
+                <!-- 下一頁 -->
+                <a th:if="${hasNext}" 
+                   th:href="@{/foods(page=${currentPage + 1}, size=12, keyword=${keyword})}"
+                   class="pagination-btn pagination-next">
+                    下一頁
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- 底部間距 -->
+        <div style="height: var(--space-16);"></div>
+    </div>
+
+    <!-- 刪除確認對話框 -->
+    <div id="deleteModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <h3>確認刪除</h3>
+            <p>您確定要刪除這個食物記錄嗎？此操作無法復原。</p>
+            <div class="modal-actions">
+                <button type="button" class="btn btn-secondary" onclick="closeDeleteModal()">取消</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDelete()">刪除</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 近期搜尋完整清單模態框 -->
+    <div id="recentSearchesModal" class="full-recommendations-modal">
+        <div class="full-recommendations-content">
+            <div class="full-recommendations-header">
+                <h3>
+                    <i class="bi bi-clock-history"></i>
+                    完整搜尋記錄
+                </h3>
+                <button type="button" class="modal-close-btn" onclick="closeRecentSearchesModal()">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="full-recommendations-body">
+                <div class="full-recommendation-section">
+                    <h4 class="section-title">
+                        <i class="bi bi-clock-history"></i>
+                        近期搜尋
+                        <span class="count" id="recentSearchModalCount">0</span>
+                    </h4>
+                    <div id="recentSearchModalContent" class="full-recommendations-container">
+                        <!-- 動態載入 -->
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="/js/food.js"></script>
+
+    <!-- 我的最愛完整清單模態框 -->
+    <div id="favoritesModal" class="full-recommendations-modal">
+        <div class="full-recommendations-content">
+            <div class="full-recommendations-header">
+                <h3>
+                    <i class="bi bi-star-fill"></i>
+                    完整最愛清單
+                </h3>
+                <button type="button" class="modal-close-btn" onclick="closeFavoritesModal()">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+            <div class="full-recommendations-body">
+                <div class="full-recommendation-section">
+                    <h4 class="section-title">
+                        <i class="bi bi-star-fill"></i>
+                        我的最愛
+                        <span class="count" id="favoritesModalCount">0</span>
+                    </h4>
+                    <div id="favoritesModalContent" class="full-recommendations-container">
+                        <!-- 動態載入 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let deleteId = null;
+
+        function deleteFood(id) {
+            deleteId = id;
+            document.getElementById('deleteModal').style.display = 'flex';
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').style.display = 'none';
+            deleteId = null;
+        }
+
+        function confirmDelete() {
+            if (deleteId) {
+                fetch(`/foods/${deleteId}`, {
+                    method: 'DELETE'
+                }).then(() => {
+                    location.reload();
+                }).catch(error => {
+                    console.error('刪除失敗:', error);
+                    alert('刪除失敗，請稍後再試');
+                });
+            }
+            closeDeleteModal();
+        }
+
+        // 鍵盤快捷鍵
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeDeleteModal();
+            }
+        });
+
+        // 點擊模態框外部關閉
+        document.getElementById('deleteModal').addEventListener('click', function(e) {
+            if (e.target === this) {
+                closeDeleteModal();
+            }
+        });
+        
+        // 快速搜尋功能
+        function searchFood(keyword) {
+            const url = new URL(window.location.href);
+            url.searchParams.set('keyword', keyword);
+            url.searchParams.set('page', '0'); // 重置頁碼
+            window.location.href = url.toString();
+        }
+        
+        // 顯示近期搜尋完整清單
+        function showRecentSearches() {
+            const modal = document.getElementById('recentSearchesModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                loadRecentSearches();
+            }
+        }
+        
+        // 關閉近期搜尋模態框
+        function closeRecentSearchesModal() {
+            document.getElementById('recentSearchesModal').style.display = 'none';
+        }
+        
+        // 顯示我的最愛完整清單
+        function showAllFavorites() {
+            const modal = document.getElementById('favoritesModal');
+            if (modal) {
+                modal.style.display = 'flex';
+                loadAllFavorites();
+            }
+        }
+        
+        // 關閉我的最愛模態框
+        function closeFavoritesModal() {
+            document.getElementById('favoritesModal').style.display = 'none';
+        }
+        
+        // 載入近期搜尋資料
+        function loadRecentSearches() {
+            fetch('/foods/recommendations')
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('recentSearchModalContent');
+                    const count = document.getElementById('recentSearchModalCount');
+                    count.textContent = data.recentSearches.length;
+                    
+                    if (data.recentSearches.length === 0) {
+                        container.innerHTML = '<p class="no-data">尚無搜尋記錄</p>';
+                    } else {
+                        container.innerHTML = data.recentSearches.map(search => 
+                            `<button type="button" class="recommendation-tag recent-search" onclick="searchFood('${search}')">
+                                <i class="bi bi-search"></i>
+                                <span>${search}</span>
+                            </button>`
+                        ).join('');
+                    }
+                })
+                .catch(error => {
+                    console.error('載入搜尋記錄失敗:', error);
+                });
+        }
+        
+        // 載入我的最愛資料
+        function loadAllFavorites() {
+            fetch('/foods/recommendations')
+                .then(response => response.json())
+                .then(data => {
+                    const container = document.getElementById('favoritesModalContent');
+                    const count = document.getElementById('favoritesModalCount');
+                    count.textContent = data.favorites.length;
+                    
+                    if (data.favorites.length === 0) {
+                        container.innerHTML = '<p class="no-data">尚無收藏的食物</p>';
+                    } else {
+                        container.innerHTML = data.favorites.map(food => 
+                            `<button type="button" class="recommendation-tag favorite-item" onclick="searchFood('${food.name}')">
+                                <i class="bi bi-star-fill"></i>
+                                <span>${food.name}</span>
+                            </button>`
+                        ).join('');
+                    }
+                })
+                .catch(error => {
+                    console.error('載入最愛清單失敗:', error);
+                });
+        }
+        
+        // 點擊模態框外部關閉
+        document.addEventListener('DOMContentLoaded', function() {
+            // 近期搜尋模態框外部點擊關閉
+            document.getElementById('recentSearchesModal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeRecentSearchesModal();
+                }
+            });
+            
+            // 我的最愛模態框外部點擊關閉
+            document.getElementById('favoritesModal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    closeFavoritesModal();
+                }
+            });
+        });
+    </script>
+
+    <style>
+        /* 模態框樣式 */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal-content {
+            background: white;
+            padding: var(--space-8);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-xl);
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+
+        .modal-content h3 {
+            margin-bottom: var(--space-4);
+            color: var(--secondary-800);
+        }
+
+        .modal-content p {
+            margin-bottom: var(--space-6);
+            color: var(--secondary-600);
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: var(--space-3);
+            justify-content: center;
+        }
+
+        /* 響應式調整 */
+        @media (max-width: 767px) {
+            .page-header {
+                flex-direction: column;
+                /* 加大標題與按鈕之間的間距 */
+                gap: var(--space-6);
+                text-align: center;
+            }
+
+            .search-container form {
+                flex-direction: column;
+            }
+
+            .food-card-content .flex {
+                flex-direction: column;
+            }
+
+            .food-card-content .btn {
+                justify-content: center;
+            }
+            
+            .food-card-title {
+                font-size: var(--font-size-lg);
+                display: flex;
+                flex-direction: row;
+                align-items: center;
+                gap: var(--space-2);
+                flex-wrap: wrap;
+                margin-bottom: var(--space-3);
+                line-height: 1.3;
+            }
+            
+            .food-name {
+                font-size: 2.25rem;
+                font-weight: 700;
+            }
+            
+            .food-unit {
+                font-size: 0.9rem;
+                font-weight: 600;
+            }
+        }
+
+        /* 工具類 */
+        .flex-1 { flex: 1; }
+        .relative { position: relative; }
+        .absolute { position: absolute; }
+        .top-3 { top: var(--space-3); }
+        .right-3 { right: var(--space-3); }
+        .font-medium { font-weight: 500; }
+        .font-bold { font-weight: 700; }
+        .text-center { text-align: center; }
+        .text-primary-500 { color: var(--primary-500); }
+        .text-primary-600 { color: var(--primary-600); }
+        .text-secondary-400 { color: var(--secondary-400); }
+        .text-secondary-500 { color: var(--secondary-500); }
+        .text-secondary-600 { color: var(--secondary-600); }
+        .text-success-500 { color: var(--success-500); }
+        
+        /* 食物卡片碳水資訊改善 */
+        .food-card-carb-info {
+            margin: var(--space-4) 0;
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-3);
+        }
+        
+        /* 食物單位樣式 */
+        .food-unit {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--primary-600);
+            margin-left: var(--space-2);
+            white-space: nowrap;
+            display: inline;
+        }
+        
+        .food-name {
+            display: inline;
+            font-size: 2.4rem;
+            font-weight: 700;
+            color: #2c3e50;
+            letter-spacing: -0.025em;
+        }
+        
+        .carb-info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--space-3);
+            background: var(--secondary-50);
+            border-radius: var(--radius-md);
+            border: 1px solid var(--secondary-200);
+        }
+        
+        .carb-info-label {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            font-size: var(--font-size-sm);
+            color: var(--secondary-600);
+        }
+        
+        .carb-info-value {
+            text-align: right;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        
+        .carb-info-value span {
+            font-weight: 700;
+            font-size: var(--font-size-xl);
+        }
+        
+        .carb-info-value.primary span {
+            color: var(--primary-600);
+        }
+        
+        .carb-info-value.success span {
+            color: var(--success-600);
+        }
+        
+        .carb-info-value small {
+            font-size: var(--font-size-xs);
+            color: var(--secondary-500);
+            margin-top: 2px;
+        }
+        
+        .carb-info-empty {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            font-size: var(--font-size-sm);
+            justify-content: center;
+            width: 100%;
+        }
+        
+        .food-card-notes-section {
+            margin: var(--space-4) 0;
+            padding: var(--space-3);
+            background: var(--secondary-50);
+            border-radius: var(--radius-md);
+            border-left: 3px solid var(--secondary-300);
+        }
+        
+        .notes-label {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            font-size: var(--font-size-xs);
+            color: var(--secondary-600);
+            margin-bottom: var(--space-2);
+            font-weight: 500;
+        }
+        
+        .food-card-notes {
+            font-size: var(--font-size-sm);
+            color: var(--secondary-700);
+            line-height: 1.4;
+            margin: 0;
+        }
+        
+        .food-card-actions {
+            display: flex;
+            gap: var(--space-2);
+            margin-top: var(--space-4);
+            padding-top: var(--space-4);
+            border-top: 1px solid var(--secondary-200);
+        }
+        
+        .btn-outline-danger {
+            background: transparent;
+            color: var(--danger-500);
+            border: 1px solid var(--danger-300);
+        }
+        
+        .btn-outline-danger:hover {
+            background: var(--danger-500);
+            color: white;
+            border-color: var(--danger-500);
+        }
+        
+        /* 可點擊卡片樣式 */
+        .clickable-card {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .clickable-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-xl);
+        }
+        
+        .edit-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        .clickable-card:hover .edit-overlay {
+            opacity: 1;
+        }
+        
+        .edit-hint {
+            color: white;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: var(--space-2);
+        }
+        
+        .edit-hint i {
+            font-size: 2rem;
+        }
+        
+        .edit-hint span {
+            font-weight: 500;
+            font-size: var(--font-size-lg);
+        }
+        
+        .quick-action-btn {
+            z-index: 10;
+            position: relative;
+        }
+        
+        .edit-prompt {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            font-size: var(--font-size-sm);
+            flex: 1;
+        }
+        
+        .food-card-actions {
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        /* 分頁導航樣式 */
+        .pagination-container {
+            display: flex;
+            justify-content: center;
+            margin: var(--space-8) 0;
+        }
+        
+        .pagination {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            background: white;
+            padding: var(--space-4);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-md);
+            border: 1px solid var(--secondary-200);
+        }
+        
+        .pagination-btn {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            padding: var(--space-3) var(--space-4);
+            background: var(--primary-500);
+            color: white;
+            text-decoration: none;
+            border-radius: var(--radius-lg);
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .pagination-btn:hover {
+            background: var(--primary-600);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .pagination-numbers {
+            display: flex;
+            align-items: center;
+            gap: var(--space-1);
+            margin: 0 var(--space-4);
+        }
+        
+        .pagination-number {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background: var(--secondary-100);
+            color: var(--secondary-700);
+            text-decoration: none;
+            border-radius: var(--radius-md);
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        
+        .pagination-number:hover {
+            background: var(--primary-100);
+            color: var(--primary-700);
+        }
+        
+        .pagination-current {
+            background: var(--primary-500) !important;
+            color: white !important;
+        }
+        
+        .pagination-ellipsis {
+            color: var(--secondary-400);
+            padding: 0 var(--space-2);
+        }
+        
+        /* 統計資訊樣式 */
+        .stats-container {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: var(--space-2);
+        }
+        
+        .stats-main {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+            flex-wrap: wrap;
+        }
+        
+        .stats-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            white-space: nowrap;
+        }
+        
+        .stats-filter {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+        }
+        
+        /* 搜尋推薦樣式 */
+        .search-recommendations {
+            margin-top: var(--space-4);
+            padding: var(--space-4);
+            background: var(--secondary-50);
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--secondary-200);
+        }
+        
+        .recommendation-section {
+            margin-bottom: var(--space-4);
+        }
+        
+        .recommendation-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .recommendation-title {
+            display: flex;
+            align-items: center;
+            gap: var(--space-2);
+            font-size: var(--font-size-sm);
+            font-weight: 600;
+            color: var(--secondary-600);
+            margin-bottom: var(--space-3);
+        }
+        
+        .recommendation-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-2);
+        }
+        
+        .recommendation-tag {
+            display: flex;
+            align-items: center;
+            gap: var(--space-1);
+            padding: var(--space-2) var(--space-3);
+            background: white;
+            border: 1px solid var(--secondary-300);
+            border-radius: var(--radius-full);
+            font-size: var(--font-size-sm);
+            color: var(--secondary-700);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border: none;
+        }
+        
+        .recommendation-tag:hover {
+            background: var(--primary-100);
+            color: var(--primary-700);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .recent-search:hover {
+            background: var(--secondary-100);
+            color: var(--secondary-800);
+        }
+        
+        .favorite-item {
+            background: var(--warning-50);
+            border-color: var(--warning-200);
+            color: var(--warning-700);
+        }
+        
+        .favorite-item:hover {
+            background: var(--warning-100);
+            color: var(--warning-800);
+        }
+        
+        .text-warning-500 {
+            color: var(--warning-500);
+        }
+    </style>
 </body>
 </html>

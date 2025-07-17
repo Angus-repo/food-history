@@ -3,222 +3,828 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title th:text="${food.id == null ? '新增食物' : '編輯食物'}">新增/編輯食物</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title th:text="${food.id == null ? '新增食物 - 食物歷史' : '編輯食物 - 食物歷史'}">新增/編輯食物</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css" rel="stylesheet">
-    <style>
-        body {
-            background-color: #f8f9fa; /* 淺灰色背景 */
-        }
-        .container {
-            margin-top: 3rem;
-        }
-        .page-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 2rem;
-        }
-        .page-title {
-            font-size: 2rem;
-            color: #343a40;
-        }
-        .form-label {
-            font-weight: 500;
-            color: #495057;
-        }
-        .form-control, .form-select {
-            border-radius: 8px;
-            border: 1px solid #ced4da;
-            padding: 0.75rem 1rem;
-        }
-        .form-control:focus, .form-select:focus {
-            border-color: #80bdff;
-            box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
-        }
-        .btn-primary {
-            background-color: #007bff;
-            border-color: #007bff;
-            border-radius: 8px;
-            padding: 0.75rem 1.5rem;
-        }
-        .btn-primary:hover {
-            background-color: #0069d9;
-            border-color: #0062cc;
-        }
-        .btn-secondary {
-            border-radius: 8px;
-            padding: 0.75rem 1.5rem;
-        }
-        .btn-danger {
-            border-radius: 8px;
-            padding: 0.75rem 1.5rem;
-        }
-        #imagePreview {
-            max-width: 200px;
-            border-radius: 8px;
-            margin-top: 1rem;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        }
-        @media (max-width: 768px) {
-            .form-control, .form-select {
-                font-size: 16px; /* 防止iOS縮放 */
-                height: 48px; /* 增加觸控區域 */
-            }
-            .btn {
-                padding: 12px 20px;
-                font-size: 16px;
-            }
-            textarea.form-control {
-                height: auto;
-            }
-            .page-header {
-                flex-direction: column;
-                gap: 1rem;
-            }
-            .page-title {
-                text-align: center;
-                width: 100%;
-            }
-            .page-actions {
-                display: flex;
-                width: 100%;
-                justify-content: space-between;
-            }
-            #imagePreview {
-                max-width: 100%;
-                height: auto;
-            }
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" th:href="@{/css/main.css}">
 </head>
 <body>
-    <div class="container mt-4">
-        <!-- Alert Messages -->
-        <div th:if="${error}" class="alert alert-danger alert-dismissible fade show" role="alert">
-            <span th:text="${error}"></span>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-        <div th:if="${success}" class="alert alert-success alert-dismissible fade show" role="alert">
-            <span th:text="${success}"></span>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-
-        <div class="d-flex mb-4 page-header">
-            <div class="page-actions">
-                <a href="/foods" class="btn btn-outline-secondary">
-                    <i class="bi bi-arrow-left"></i> 返回列表
+    <div class="container fade-in">
+        <!-- 頁面標題 -->
+        <header class="page-header">
+            <h1 class="page-title">
+                <i class="bi bi-journal-plus"></i>
+                <span th:text="${food.id == null ? '新增食物' : '編輯食物'}">新增/編輯食物</span>
+            </h1>
+            <div class="flex gap-3">
+                <a href="/foods" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i>
+                    返回列表
                 </a>
-                <button th:if="${food.id != null}" type="button" class="btn btn-danger" 
+                <button th:if="${food.id != null}" 
+                        type="button" 
+                        class="btn favorite-btn"
+                        th:classappend="${food.isFavorite} ? 'favorite-btn-active' : 'favorite-btn-inactive'"
+                        th:onclick="'toggleFavorite(' + ${food.id} + ')'"
+                        id="favoriteBtn">
+                    <div class="favorite-btn-content">
+                        <i class="bi favorite-icon" th:classappend="${food.isFavorite} ? 'bi-star-fill' : 'bi-star'"></i>
+                        <span class="favorite-text" th:text="${food.isFavorite} ? '已收藏' : '加入最愛'">最愛</span>
+                    </div>
+                </button>
+                <button th:if="${food.id != null}" 
+                        type="button" 
+                        class="btn btn-danger" 
                         th:onclick="'deleteFood(' + ${food.id} + ')'">
-                    <i class="bi bi-trash"></i> 刪除
+                    <i class="bi bi-trash"></i>
+                    刪除
                 </button>
             </div>
-            <div class="page-title">
-                <h2 class="mb-0" th:text="${food.id == null ? '新增食物' : '編輯食物'}">新增/編輯食物</h2>
+        </header>
+
+        <!-- 提示訊息 -->
+        <div th:if="${error}" class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle"></i>
+            <span th:text="${error}"></span>
+        </div>
+        
+        <div th:if="${success}" class="alert alert-success">
+            <i class="bi bi-check-circle"></i>
+            <span th:text="${success}"></span>
+        </div>
+
+        <!-- 表單容器 -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- 左側：圖片上傳 -->
+            <div class="lg:col-span-1">
+                <div class="card slide-in">
+                    <div class="card-header">
+                        <h3 class="flex items-center gap-2 font-semibold">
+                            <i class="bi bi-camera text-primary-500"></i>
+                            食物圖片
+                        </h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="image-upload-area" onclick="document.getElementById('imageFile').click()">
+                            <input type="file" 
+                                   class="hidden" 
+                                   id="imageFile" 
+                                   name="imageFile" 
+                                   accept="image/*" 
+                                   onchange="previewImage(this)" 
+                                   capture="environment"
+                                   form="foodForm">
+                            
+                            <div id="uploadPlaceholder" th:style="${imageUrl != null ? 'display: none;' : ''}">
+                                <i class="bi bi-cloud-upload upload-icon"></i>
+                                <p class="upload-text">點擊或拖拽上傳圖片</p>
+                                <p class="upload-hint">支援 JPEG、PNG 或 GIF 格式</p>
+                            </div>
+                            
+                            <div th:if="${imageUrl != null}" class="image-preview-container">
+                                <img th:src="${imageUrl}" class="image-preview" id="imagePreview">
+                                <button type="button" class="image-remove-btn" onclick="removeImage(event)" title="移除圖片">
+                                    <i class="bi bi-x"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div id="uploadProgress" class="progress-bar hidden">
+                            <div class="progress-fill" style="width: 0%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右側：表單資料 -->
+            <div class="lg:col-span-2">
+                <form id="foodForm" th:action="@{/foods}" method="post" enctype="multipart/form-data" th:object="${food}">
+                    <input type="hidden" th:field="*{id}">
+                    
+                    <!-- 基本資訊 -->
+                    <div class="card slide-in" style="animation-delay: 0.1s;">
+                        <div class="card-header">
+                            <h3 class="flex items-center gap-2 font-semibold">
+                                <i class="bi bi-info-circle text-primary-500"></i>
+                                基本資訊
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label for="name" class="form-label">
+                                    食物名稱 <span class="text-danger-500">*</span>
+                                </label>
+                                <div class="name-unit-container">
+                                    <div class="input-with-icon name-input-wrapper">
+                                        <i class="bi bi-tag input-icon"></i>
+                                        <input type="text" 
+                                               class="form-control input-with-icon-padding food-name-input" 
+                                               id="name" 
+                                               th:field="*{name}" 
+                                               required 
+                                               maxlength="30" 
+                                               placeholder="例如：白米飯、蘋果...">
+                                    </div>
+                                    <div class="quantity-unit-group">
+                                        <div class="quantity-input">
+                                            <input type="number" 
+                                                   class="form-control quantity-number" 
+                                                   th:field="*{quantity}" 
+                                                   id="quantity"
+                                                   min="0.5" 
+                                                   max="999" 
+                                                   step="0.5"
+                                                   placeholder="數量">
+                                        </div>
+                                        <div class="unit-selector">
+                                            <select class="form-control unit-select" th:field="*{unit}" id="unit">
+                                                <option value="">選擇單位</option>
+                                                <option value="個">個</option>
+                                                <option value="顆">顆</option>
+                                                <option value="包">包</option>
+                                                <option value="盒">盒</option>
+                                                <option value="克">克</option>
+                                                <option value="cc">cc</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                <small class="text-secondary-500">
+                                    可選填：設定數量和單位，例如「1顆」、「2包」
+                                </small>
+                            </div>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div class="form-group">
+                                    <label for="servingSize" class="form-label">
+                                        碳水化合物含量比例
+                                        <span class="tooltip-icon" title="每100克食物中碳水化合物的比例，例如：白米飯約0.23（23%）">
+                                            <i class="bi bi-info-circle"></i>
+                                        </span>
+                                    </label>
+                                    <div class="input-with-icon">
+                                        <i class="bi bi-percent input-icon"></i>
+                                        <input type="number" 
+                                               class="form-control input-with-icon-padding carb-input" 
+                                               id="servingSize" 
+                                               th:value="${food.servingSize}" 
+                                               name="servingSize"
+                                               min="0" 
+                                               max="1" 
+                                               step="0.01" 
+                                               placeholder="例如：0.23（表示23%）">
+                                    </div>
+                                    <small class="text-secondary-500">
+                                        輸入0-1之間的數值，例如：0.25代表25%
+                                        <br><strong>常見食物參考：</strong>白米飯0.23、蘋果0.14、香蕉0.23
+                                    </small>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label for="carbGrams" class="form-label">
+                                        碳水化合物含量 (g)
+                                        <span class="tooltip-icon" title="這份食物實際含有多少克碳水化合物">
+                                            <i class="bi bi-info-circle"></i>
+                                        </span>
+                                    </label>
+                                    <div class="input-with-icon">
+                                        <i class="bi bi-graph-up input-icon"></i>
+                                        <input type="number" 
+                                               class="form-control input-with-icon-padding carb-input" 
+                                               id="carbGrams" 
+                                               th:field="*{carbGrams}" 
+                                               min="0.1" 
+                                               max="999" 
+                                               step="0.1"
+                                               placeholder="例如：25.5">
+                                    </div>
+                                    <small class="text-secondary-500">
+                                        這份食物的碳水化合物克數（可含小數點）
+                                    </small>
+                                </div>
+                            </div>
+                            
+                            <div class="alert alert-info">
+                                <i class="bi bi-lightbulb"></i>
+                                <div>
+                                    <strong>填寫說明：</strong>
+                                    <ul style="margin: 8px 0 0 20px; padding: 0;">
+                                        <li><strong>碳水化合物含量比例：</strong>適合經常食用的食物，一次設定後可重複使用</li>
+                                        <li><strong>碳水化合物含量：</strong>適合包裝食品或已知確切含量的食物</li>
+                                        <li>兩者至少需要填寫一項，也可以都填寫</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 備註資訊 -->
+                    <div class="card slide-in" style="animation-delay: 0.2s;">
+                        <div class="card-header">
+                            <h3 class="flex items-center gap-2 font-semibold">
+                                <i class="bi bi-chat-text text-primary-500"></i>
+                                備註資訊
+                            </h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label for="notes" class="form-label">備註</label>
+                                <textarea class="form-control" 
+                                          id="notes" 
+                                          th:field="*{notes}" 
+                                          maxlength="100" 
+                                          rows="4" 
+                                          placeholder="記錄一些特殊說明或提醒事項..."></textarea>
+                                <div class="flex justify-between" style="margin-top: var(--space-2);">
+                                    <small class="text-secondary-500">選填項目</small>
+                                    <small class="text-secondary-500" id="notesCounter">0/100</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 操作按鈕 -->
+                    <div class="card slide-in" style="animation-delay: 0.25s;">
+                        <div class="card-body">
+                            <div class="flex flex-col gap-4 justify-end">
+                                <button type="submit" class="btn btn-primary btn-lg">
+                                    <i class="bi bi-save"></i>
+                                    <span th:text="${food.id == null ? '新增食物' : '更新食物'}">儲存</span>
+                                </button>
+                                <a href="/foods" class="btn btn-secondary btn-lg">
+                                    <i class="bi bi-x-lg"></i>
+                                    取消
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </form>
             </div>
         </div>
 
-        <form th:action="@{/foods}" method="post" enctype="multipart/form-data" th:object="${food}" class="needs-validation" novalidate>
-            <input type="hidden" th:field="*{id}">
-            
-            <div class="mb-4">
-                <label for="imageFile" class="form-label">食物圖片</label>
-                <input type="file" class="form-control" id="imageFile" name="imageFile" 
-                       accept="image/*" onchange="previewImage(this)" capture="environment">
-                <div class="form-text">支援 JPEG、PNG 或 GIF 格式的圖片</div>
-                <img th:if="${imageUrl != null}" 
-                     th:src="${imageUrl}"
-                     class="mt-2 rounded" style="max-width: 200px;" id="imagePreview">
-            </div>
-
-            <div class="mb-4">
-                <label for="name" class="form-label">食物名稱</label>
-                <input type="text" class="form-control" id="name" th:field="*{name}" 
-                       required maxlength="30">
-                <div class="invalid-feedback">
-                    請輸入食物名稱
-                </div>
-            </div>
-
-            <div class="mb-4">
-                <label for="servingSize" class="form-label">系數</label>
-                <input type="number" class="form-control" id="servingSize" th:field="*{servingSize}" 
-                       min="0" max="1" step="0.01">
-                <div class="invalid-feedback">
-                    請填寫0-1之間的小數（最多2位小數）或填寫碳水克數
-                </div>
-            </div>
-
-            <div class="mb-4">
-                <label for="carbGrams" class="form-label">碳水</label>
-                <input type="number" class="form-control" id="carbGrams" th:field="*{carbGrams}" 
-                       min="1" max="999">
-                <div class="invalid-feedback">
-                    請填寫1-999之間的碳水克數
-                </div>
-            </div>
-
-            <div class="mb-4">
-                <label for="notes" class="form-label">備註</label>
-                <textarea class="form-control" id="notes" th:field="*{notes}" 
-                          maxlength="100" rows="3"></textarea>
-                <div class="form-text">最多100字</div>
-            </div>
-
-            <div class="mb-4">
-                <button type="submit" class="btn btn-primary w-100">
-                    <i class="bi bi-save"></i> 儲存
-                </button>
-            </div>
-        </form>
+        <!-- 底部間距 -->
+        <div style="height: var(--space-16);"></div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="/js/food.js"></script>
     <script>
-        // 表單驗證
-        (function () {
-            'use strict'
-            var forms = document.querySelectorAll('.needs-validation')
-            Array.prototype.slice.call(forms)
-                .forEach(function (form) {
-                    form.addEventListener('submit', function (event) {
-                        // 自定義驗證：份數和碳水克數至少填寫一個
-                        const servingSize = form.querySelector('#servingSize').value;
-                        const carbGrams = form.querySelector('#carbGrams').value;
+        // 圖片預覽功能
+        function previewImage(input) {
+            if (input.files && input.files[0]) {
+                const reader = new FileReader();
+                const uploadPlaceholder = document.getElementById('uploadPlaceholder');
+                const progressBar = document.getElementById('uploadProgress');
+                
+                // 顯示進度條
+                progressBar.classList.remove('hidden');
+                const progressFill = progressBar.querySelector('.progress-fill');
+                
+                reader.onloadstart = function() {
+                    progressFill.style.width = '0%';
+                };
+                
+                reader.onprogress = function(e) {
+                    if (e.lengthComputable) {
+                        const percentLoaded = Math.round((e.loaded / e.total) * 100);
+                        progressFill.style.width = percentLoaded + '%';
+                    }
+                };
+                
+                reader.onload = function(e) {
+                    progressFill.style.width = '100%';
+                    setTimeout(() => {
+                        // 隱藏上傳提示
+                        uploadPlaceholder.style.display = 'none';
                         
-                        if (!servingSize && !carbGrams) {
-                            event.preventDefault();
-                            event.stopPropagation();
-                            form.querySelector('#servingSize').classList.add('is-invalid');
-                            form.querySelector('#carbGrams').classList.add('is-invalid');
-                        } else {
-                            form.querySelector('#servingSize').classList.remove('is-invalid');
-                            form.querySelector('#carbGrams').classList.remove('is-invalid');
+                        // 移除現有的圖片預覽容器
+                        const existingContainer = document.querySelector('.image-preview-container');
+                        if (existingContainer) {
+                            existingContainer.remove();
                         }
+                        
+                        // 創建新的圖片預覽容器
+                        const container = document.createElement('div');
+                        container.className = 'image-preview-container';
+                        
+                        const img = document.createElement('img');
+                        img.id = 'imagePreview';
+                        img.className = 'image-preview';
+                        img.src = e.target.result;
+                        
+                        const removeBtn = document.createElement('button');
+                        removeBtn.type = 'button';
+                        removeBtn.className = 'image-remove-btn';
+                        removeBtn.title = '移除圖片';
+                        removeBtn.onclick = function(event) { removeImage(event); };
+                        removeBtn.innerHTML = '<i class="bi bi-x"></i>';
+                        
+                        container.appendChild(img);
+                        container.appendChild(removeBtn);
+                        document.querySelector('.image-upload-area').appendChild(container);
+                        
+                        progressBar.classList.add('hidden');
+                    }, 500);
+                };
+                
+                reader.readAsDataURL(input.files[0]);
+            }
+        }
+        
+        // 移除圖片功能
+        function removeImage(event) {
+            event.stopPropagation();
+            
+            // 清除文件輸入
+            document.getElementById('imageFile').value = '';
+            
+            // 移除圖片預覽容器
+            const container = document.querySelector('.image-preview-container');
+            if (container) {
+                container.remove();
+            }
+            
+            // 顯示上傳提示
+            document.getElementById('uploadPlaceholder').style.display = 'block';
+        }
+        
+        // 拖拽上傳功能
+        const uploadArea = document.querySelector('.image-upload-area');
+        
+        ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, preventDefaults, false);
+        });
+        
+        function preventDefaults(e) {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        
+        ['dragenter', 'dragover'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, highlight, false);
+        });
+        
+        ['dragleave', 'drop'].forEach(eventName => {
+            uploadArea.addEventListener(eventName, unhighlight, false);
+        });
+        
+        function highlight(e) {
+            uploadArea.classList.add('dragover');
+        }
+        
+        function unhighlight(e) {
+            uploadArea.classList.remove('dragover');
+        }
+        
+        uploadArea.addEventListener('drop', handleDrop, false);
+        
+        function handleDrop(e) {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            
+            if (files.length > 0) {
+                document.getElementById('imageFile').files = files;
+                previewImage(document.getElementById('imageFile'));
+            }
+        }
+        
+        // 備註字數統計
+        const notesTextarea = document.getElementById('notes');
+        const notesCounter = document.getElementById('notesCounter');
+        
+        notesTextarea.addEventListener('input', function() {
+            const currentLength = this.value.length;
+            notesCounter.textContent = currentLength + '/100';
+            
+            if (currentLength > 80) {
+                notesCounter.style.color = 'var(--warning-500)';
+            } else {
+                notesCounter.style.color = 'var(--secondary-500)';
+            }
+        });
+        
+        // 初始化字數統計
+        if (notesTextarea.value) {
+            notesCounter.textContent = notesTextarea.value.length + '/100';
+        }
+        
+        // 表單驗證
+        document.getElementById('foodForm').addEventListener('submit', function(event) {
+            const servingSize = document.getElementById('servingSize').value;
+            const carbGrams = document.getElementById('carbGrams').value;
+            
+            if (!servingSize && !carbGrams) {
+                event.preventDefault();
+                
+                // 顯示錯誤提示
+                const errorAlert = document.createElement('div');
+                errorAlert.className = 'alert alert-danger';
+                errorAlert.innerHTML = '<i class="bi bi-exclamation-triangle"></i>請至少填寫碳水化合物含量比例或碳水化合物含量其中一項';
+                
+                const container = document.querySelector('.container');
+                const header = container.querySelector('.page-header');
+                container.insertBefore(errorAlert, header.nextSibling);
+                
+                // 滾動到頂部
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                
+                // 3秒後自動移除提示
+                setTimeout(() => {
+                    errorAlert.remove();
+                }, 3000);
+                
+                return false;
+            }
+        });
 
-                        if (!form.checkValidity()) {
-                            event.preventDefault();
-                            event.stopPropagation();
-                        }
-                        form.classList.add('was-validated');
-                    }, false);
+        // 刪除功能
+        function deleteFood(id) {
+            if (confirm('您確定要刪除這個食物記錄嗎？此操作無法復原。')) {
+                fetch(`/foods/${id}`, {
+                    method: 'DELETE'
+                }).then(() => {
+                    window.location.href = '/foods';
+                }).catch(error => {
+                    console.error('刪除失敗:', error);
+                    alert('刪除失敗，請稍後再試');
+                });
+            }
+        }
 
-                    // 當其中一個欄位有值時，移除另一個欄位的錯誤提示
-                    form.querySelector('#servingSize').addEventListener('change', function() {
-                        if (this.value) {
-                            form.querySelector('#carbGrams').classList.remove('is-invalid');
-                        }
-                    });
+        // 切換最愛功能
+        function toggleFavorite(id) {
+            const btn = document.getElementById('favoriteBtn');
+            const icon = btn.querySelector('.favorite-icon');
+            const text = btn.querySelector('.favorite-text');
+            
+            fetch(`/foods/${id}/toggle-favorite`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.isFavorite) {
+                        // 切換到已收藏狀態
+                        btn.classList.remove('favorite-btn-inactive');
+                        btn.classList.add('favorite-btn-active');
+                        icon.className = 'bi bi-star-fill favorite-icon';
+                        text.textContent = '已收藏';
+                    } else {
+                        // 切換到未收藏狀態
+                        btn.classList.remove('favorite-btn-active');
+                        btn.classList.add('favorite-btn-inactive');
+                        icon.className = 'bi bi-star favorite-icon';
+                        text.textContent = '加入最愛';
+                    }
+                } else {
+                    alert('操作失敗，請稍後再試');
+                }
+            })
+            .catch(error => {
+                console.error('切換最愛失敗:', error);
+                alert('操作失敗，請稍後再試');
+            });
+        }
 
-                    form.querySelector('#carbGrams').addEventListener('input', function() {
-                        if (this.value) {
-                            form.querySelector('#servingSize').classList.remove('is-invalid');
-                        }
-                    });
-                })
-        })()
     </script>
+
+    <style>
+        
+        /* 食物名稱和單位容器 */
+        .name-unit-container {
+            display: flex;
+            gap: var(--space-3);
+            align-items: end;
+        }
+        
+        .name-input-wrapper {
+            flex: 1;
+        }
+        
+        .food-name-input {
+            font-size: var(--font-size-xl);
+            font-weight: 700;
+            color: #000000;
+        }
+        
+        .quantity-unit-group {
+            display: flex;
+            gap: var(--space-2);
+            align-items: end;
+            min-width: 200px;
+        }
+        
+        .quantity-input {
+            width: 80px;
+        }
+        
+        .quantity-number {
+            font-size: var(--font-size-lg);
+            font-weight: 700;
+            color: #000000;
+            text-align: center;
+            border: 2px solid var(--primary-400);
+        }
+        
+        .quantity-number:focus {
+            border-color: var(--primary-500);
+            box-shadow: 0 0 0 3px var(--primary-100);
+        }
+        
+        .unit-selector {
+            width: 100px;
+        }
+        
+        .unit-select {
+            font-size: var(--font-size-lg);
+            font-weight: 700;
+            color: #000000;
+            border: 2px solid var(--primary-500);
+        }
+        
+        /* 碳水化合物輸入框樣式 */
+        .carb-input {
+            font-size: var(--font-size-xl);
+            font-weight: 700;
+            color: #000000;
+        }
+        
+        /* 圖片上傳區域 */
+        .image-upload-area {
+            border: 2px dashed var(--secondary-300);
+            border-radius: var(--radius-xl);
+            padding: var(--space-8);
+            text-align: center;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            background: var(--secondary-50);
+            min-height: 200px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .image-upload-area:hover {
+            border-color: var(--primary-500);
+            background: var(--primary-50);
+        }
+        
+        .image-upload-area.dragover {
+            border-color: var(--primary-500);
+            background: var(--primary-50);
+            transform: scale(1.02);
+        }
+        
+        .upload-icon {
+            font-size: 3rem;
+            color: var(--secondary-400);
+            margin-bottom: var(--space-4);
+        }
+        
+        .upload-text {
+            color: var(--secondary-600);
+            margin-bottom: var(--space-2);
+            font-weight: 500;
+        }
+        
+        .upload-hint {
+            font-size: var(--font-size-sm);
+            color: var(--secondary-500);
+        }
+        
+        .image-preview {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-md);
+            display: block;
+        }
+        
+        .image-preview-container {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .image-remove-btn {
+            position: absolute;
+            top: var(--space-2);
+            right: var(--space-2);
+            background: rgba(239, 68, 68, 0.9);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: var(--font-size-sm);
+            transition: all 0.2s ease;
+            backdrop-filter: blur(4px);
+        }
+        
+        .image-remove-btn:hover {
+            background: var(--danger-600);
+            transform: scale(1.1);
+        }
+        
+        .progress-bar {
+            height: 4px;
+            background: var(--secondary-200);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: var(--space-4);
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--primary-500), var(--primary-600));
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+        
+        /* 輸入框圖標 */
+        .input-with-icon {
+            position: relative;
+        }
+        
+        .input-icon {
+            position: absolute;
+            left: var(--space-4);
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--secondary-400);
+            z-index: 10;
+        }
+        
+        .input-with-icon-padding {
+            padding-left: var(--space-12);
+        }
+        
+        /* 計算器樣式 */
+        .calculator-section {
+            padding: var(--space-4);
+            border: 1px solid var(--secondary-300);
+            border-radius: var(--radius-lg);
+            background: var(--white);
+            box-shadow: var(--shadow-sm);
+            margin-top: var(--space-4);
+        }
+        
+        .calculator-actions {
+            margin-top: var(--space-4);
+            display: flex;
+            gap: var(--space-3);
+        }
+        
+        .result-field {
+            background: #f9f9f9;
+            cursor: not-allowed;
+        }
+        
+        /* 響應式調整 */
+        @media (max-width: 1023px) {
+            .grid.lg\\:grid-cols-3 {
+                grid-template-columns: 1fr;
+            }
+            
+            .page-header {
+                flex-direction: column;
+                gap: var(--space-4);
+                text-align: center;
+            }
+            
+            .flex.justify-end {
+                justify-content: center;
+                flex-direction: column;
+            }
+        }
+        
+        @media (max-width: 767px) {
+            .grid.md\\:grid-cols-2 {
+                grid-template-columns: 1fr;
+            }
+            
+            .name-unit-container {
+                flex-direction: column;
+                gap: var(--space-3);
+            }
+            
+            .quantity-unit-group {
+                min-width: auto;
+                justify-content: center;
+            }
+            
+            .quantity-input {
+                width: 100px;
+            }
+            
+            .unit-selector {
+                width: 120px;
+            }
+            
+            .image-upload-area {
+                padding: var(--space-6);
+                min-height: 150px;
+            }
+            
+            .upload-icon {
+                font-size: 2rem;
+            }
+        }
+        
+        /* 美化最愛按鈕樣式 */
+        .favorite-btn {
+            position: relative;
+            background: #ffffff;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px 18px;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            font-weight: 500;
+        }
+        
+        .favorite-btn:hover {
+            border-color: #cbd5e1;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+        }
+        
+        .favorite-btn-content {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .favorite-icon {
+            font-size: 1.1rem;
+            transition: color 0.2s ease;
+        }
+        
+        .favorite-text {
+            font-size: 0.9rem;
+            transition: color 0.2s ease;
+        }
+        
+        /* 未收藏狀態 */
+        .favorite-btn-inactive {
+            color: #64748b;
+        }
+        
+        .favorite-btn-inactive:hover {
+            color: #374151;
+            border-color: #9ca3af;
+        }
+        
+        .favorite-btn-inactive:hover .favorite-icon {
+            color: #f59e0b;
+        }
+        
+        /* 已收藏狀態 */
+        .favorite-btn-active {
+            background: #fefbf3;
+            border-color: #f59e0b;
+            color: #92400e;
+        }
+        
+        .favorite-btn-active .favorite-icon {
+            color: #f59e0b;
+        }
+        
+        .favorite-btn-active:hover {
+            background: #fef7ed;
+            border-color: #d97706;
+        }
+        
+        .favorite-btn-active:hover .favorite-icon {
+            color: #d97706;
+        }
+        
+        /* 點擊效果 */
+        .favorite-btn:active {
+            transform: translateY(1px);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* 響應式調整 */
+        @media (max-width: 767px) {
+            .favorite-btn {
+                padding: 8px 14px;
+            }
+            
+            .favorite-icon {
+                font-size: 1rem;
+            }
+            
+            .favorite-text {
+                font-size: 0.85rem;
+            }
+        }
+        
+        /* 工具類 */
+        .font-semibold { font-weight: 600; }
+        .text-danger-500 { color: var(--danger-500); }
+        .justify-between { justify-content: space-between; }
+        .justify-end { justify-content: flex-end; }
+    </style>
 </body>
 </html>

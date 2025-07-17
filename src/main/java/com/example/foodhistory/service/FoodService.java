@@ -3,6 +3,8 @@ package com.example.foodhistory.service;
 import com.example.foodhistory.model.Food;
 import com.example.foodhistory.repository.FoodRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import java.util.List;
 
@@ -22,6 +24,13 @@ public class FoodService {
         return foodRepository.findByNameContainingIgnoreCase(keyword.trim());
     }
     
+    public Page<Food> searchFoods(String keyword, Pageable pageable) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return foodRepository.findAll(pageable);
+        }
+        return foodRepository.findByNameContainingIgnoreCase(keyword.trim(), pageable);
+    }
+    
     public Food getFoodById(Long id) {
         return foodRepository.findById(id).orElse(null);
     }
@@ -32,5 +41,23 @@ public class FoodService {
     
     public void deleteFood(Long id) {
         foodRepository.deleteById(id);
+    }
+    
+    public Food toggleFavorite(Long id) {
+        Food food = getFoodById(id);
+        if (food != null) {
+            food.setIsFavorite(!food.getIsFavorite());
+            return saveFood(food);
+        }
+        return null;
+    }
+    
+    public List<Food> getFavoriteRecommendations(int limit) {
+        List<Food> favorites = foodRepository.findByIsFavoriteTrueOrderByNameAsc();
+        return favorites.size() > limit ? favorites.subList(0, limit) : favorites;
+    }
+    
+    public List<Food> getAllFavorites() {
+        return foodRepository.findByIsFavoriteTrueOrderByNameAsc();
     }
 }

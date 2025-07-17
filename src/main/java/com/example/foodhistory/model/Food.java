@@ -20,6 +20,12 @@ public class Food {
     @Column(name = "carb_grams")
     private Integer carbGrams;
     
+    @Column
+    private Double quantity;
+    
+    @Column(length = 10)
+    private String unit;
+    
     @Column(length = 100)
     private String notes;
     
@@ -29,4 +35,7 @@ public class Food {
     
     @Column(name = "image_content_type")
     private String imageContentType;
+    
+    @Column(name = "is_favorite", nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
+    private Boolean isFavorite = false;
 }

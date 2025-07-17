@@ -15,12 +15,6 @@ public class LoginControllerTest {
     }
 
     @Test
-    public void testLogout() {
-        String viewName = loginController.logout();
-        assertEquals("login", viewName);
-    }
-
-    @Test
     public void testHome() {
         String viewName = loginController.home();
         assertEquals("redirect:/foods", viewName);

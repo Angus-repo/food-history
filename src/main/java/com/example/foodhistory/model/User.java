@@ -22,4 +22,15 @@ public class User {
     private String role;
     
     private boolean enabled = true;
+
+    @Column(name = "is_authorized", nullable = false, columnDefinition = "boolean default false")
+    private boolean isAuthorized = false;
+
+    public boolean isAuthorized() {
+        return isAuthorized;
+    }
+
+    public void setIsAuthorized(boolean isAuthorized) {
+        this.isAuthorized = isAuthorized;
+    }
 }
