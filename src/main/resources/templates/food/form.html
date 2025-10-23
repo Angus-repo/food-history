@@ -157,8 +157,8 @@
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div class="form-group">
                                     <label for="servingSize" class="form-label">
-                                        碳水化合物含量比例
-                                        <span class="tooltip-icon" title="每100克食物中碳水化合物的比例，例如：白米飯約0.23（23%）">
+                                        系數
+                                        <span class="tooltip-icon" title="每100克食物中碳水系數，例如：白米飯約0.23（23%）">
                                             <i class="bi bi-info-circle"></i>
                                         </span>
                                     </label>
@@ -182,7 +182,7 @@
                                 
                                 <div class="form-group">
                                     <label for="carbGrams" class="form-label">
-                                        碳水化合物含量 (g)
+                                        碳水化合物 (g)
                                         <span class="tooltip-icon" title="這份食物實際含有多少克碳水化合物">
                                             <i class="bi bi-info-circle"></i>
                                         </span>
@@ -209,8 +209,8 @@
                                 <div>
                                     <strong>填寫說明：</strong>
                                     <ul style="margin: 8px 0 0 20px; padding: 0;">
-                                        <li><strong>碳水化合物含量比例：</strong>適合經常食用的食物，一次設定後可重複使用</li>
-                                        <li><strong>碳水化合物含量：</strong>適合包裝食品或已知確切含量的食物</li>
+                                        <li><strong>系數：</strong>適合經常食用的食物，一次設定後可重複使用</li>
+                                        <li><strong>碳水化合物：</strong>適合包裝食品或已知確切含量的食物</li>
                                         <li>兩者至少需要填寫一項，也可以都填寫</li>
                                     </ul>
                                 </div>
@@ -417,7 +417,7 @@
                 // 顯示錯誤提示
                 const errorAlert = document.createElement('div');
                 errorAlert.className = 'alert alert-danger';
-                errorAlert.innerHTML = '<i class="bi bi-exclamation-triangle"></i>請至少填寫碳水化合物含量比例或碳水化合物含量其中一項';
+                errorAlert.innerHTML = '<i class="bi bi-exclamation-triangle"></i>請至少填寫系數或碳水化合物其中一項';
                 
                 const container = document.querySelector('.container');
                 const header = container.querySelector('.page-header');

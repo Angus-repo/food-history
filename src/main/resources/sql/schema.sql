@@ -7,7 +7,9 @@ CREATE TABLE IF NOT EXISTS users (
     encrypted_password VARCHAR(100) NOT NULL,
     role VARCHAR(20) NOT NULL,
     enabled BOOLEAN DEFAULT TRUE,
-    is_authorized BOOLEAN DEFAULT FALSE
+    is_authorized BOOLEAN DEFAULT FALSE,
+    refresh_token VARCHAR(1000),
+    email VARCHAR(255) UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS foods (

@@ -112,7 +112,7 @@
                     <!-- Google 登入按鈕 -->
                     <div class="d-grid">
                         <a href="/oauth2/authorization/google" class="btn-google-modern">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/53/Google_%22G%22_Logo.svg/512px-Google_%22G%22_Logo.svg.png" 
+                            <img src="https://upload.wikimedia.org/wikipedia/commons/c/c1/Google_%22G%22_logo.svg" 
                                  alt="Google Logo" class="google-logo">
                             使用 Google 帳戶登入
                         </a>
@@ -158,10 +158,29 @@
             loginCard.classList.add('slide-in');
         });
         
-        // Google 登入按鈕點擊效果
-        document.querySelector('.btn-google-modern').addEventListener('click', function(e) {
-            this.innerHTML = '<div class="loading-spinner"></div> 正在登入...';
-        });
+        // Google 登入按鈕點擊效果（更健壯的導向處理，避免擴充/注入腳本阻止預設）
+        (function() {
+            const googleBtn = document.querySelector('.btn-google-modern');
+            if (!googleBtn) return;
+
+            googleBtn.addEventListener('click', function(e) {
+                try {
+                    // 顯示 loading 狀態
+                    this.innerHTML = '<div class="loading-spinner"></div> 正在登入...';
+
+                    // 強制導向，避免被其他注入腳本阻止預設行為
+                    const href = this.getAttribute('href') || this.href;
+                    if (href) {
+                        // 使用 assign 可被記錄在歷史紀錄中
+                        window.location.assign(href);
+                    }
+                } catch (err) {
+                    // 若發生錯誤，回復按鈕文字並將錯誤印到 console
+                    console.error('Google login click handler error:', err);
+                    this.textContent = '使用 Google 帳戶登入';
+                }
+            });
+        })();
     </script>
 </body>
 </html>
