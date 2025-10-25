@@ -175,18 +175,42 @@
                 </div>
 
                 <!-- 食物名稱（移到最上方） -->
-                <div class="food-card-title-wrapper" style="padding: var(--space-5) var(--space-5) 0 var(--space-5);">
+                <div class="food-card-title-wrapper" style="padding: var(--space-5) var(--space-5) 0 var(--space-5); position: relative; min-height: 3.5em;">
+                    <!-- 名稱獨立一層 -->
                     <h3 class="food-card-title" style="margin-bottom: 0;">
                         <span class="food-name" th:text="${food.name}">食物名稱</span>
-                        <span th:if="${food.quantity != null and food.quantity > 0 and food.unit != null and food.unit != ''}" 
+                    </h3>
+                </div>
+
+                <!-- 食物圖片（移到名稱下方） -->
+                <div class="relative food-card-image-wrapper" style="height: 220px; overflow: hidden;">
+                    <!-- 份數右上角浮動在圖片上 -->
+                    <div class="food-portion-badge food-portion-badge-image" style="position: absolute; top: 0.5rem; right: 0.5rem;">
+                        <span th:if="${food.quantity != null and food.quantity > 0 and food.unit != null and food.unit != ''}"
                               class="food-unit">
                             (<span th:text="${food.quantity % 1 == 0 ? T(java.lang.Math).round(food.quantity) : food.quantity}"></span><span th:text="${food.unit}"></span>)
                         </span>
-                        <span th:if="${(food.quantity == null or food.quantity <= 0) and food.unit != null and food.unit != ''}" 
+                        <span th:if="${(food.quantity == null or food.quantity <= 0) and food.unit != null and food.unit != ''}"
                               class="food-unit">
                             (<span th:text="${food.unit}"></span>)
                         </span>
-                    </h3>
+                    </div>
+                    <img th:if="${food.imagePath != null}" 
+                         th:src="@{'/foods/images/' + ${food.imagePath}}"
+                         class="food-card-image enhanced-image"
+                         th:alt="${food.name}">
+                    <div th:unless="${food.imagePath != null}" 
+                         class="food-card-image flex items-center justify-center enhanced-placeholder"
+                         style="background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);">
+                        <i class="bi bi-image" style="font-size: 3.5rem; color: #9ca3af;"></i>
+                    </div>
+                    <!-- 編輯提示 -->
+                    <div class="edit-overlay enhanced-overlay">
+                        <div class="edit-hint">
+                            <i class="bi bi-pencil-square"></i>
+                            <span>點擊編輯</span>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- 食物圖片（移到名稱下方） -->
@@ -621,6 +645,25 @@
             font-weight: 700;
             margin-bottom: var(--space-4);
             color: #1a202c;
+        }
+        /* 份數徽章（圖片右上角） */
+        .food-portion-badge-image {
+            position: absolute;
+            top: 0.5rem;
+            right: 0.5rem;
+            z-index: 3;
+            display: flex;
+            align-items: flex-start;
+        }
+        .food-portion-badge-image .food-unit {
+            font-size: 1rem;
+            color: var(--primary-600);
+            background: rgba(243,244,246,0.5); /* #f3f4f6 半透明 */
+            border-radius: 1rem;
+            padding: 0.1em 0.8em;
+            font-weight: 700;
+            white-space: nowrap;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.04);
         }
         
         .food-name {
