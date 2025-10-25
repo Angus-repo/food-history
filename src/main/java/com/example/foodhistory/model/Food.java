@@ -18,7 +18,7 @@ public class Food {
     private String servingSize;
     
     @Column(name = "carb_grams")
-    private Integer carbGrams;
+    private Double carbGrams;
     
     @Column
     private Double quantity;
