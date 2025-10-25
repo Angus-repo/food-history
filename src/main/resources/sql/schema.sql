@@ -24,3 +24,11 @@ CREATE TABLE IF NOT EXISTS foods (
     image_content_type VARCHAR(100),
     is_favorite BOOLEAN DEFAULT FALSE
 );
+
+-- Remember Me token 表
+CREATE TABLE IF NOT EXISTS persistent_logins (
+    username VARCHAR(64) NOT NULL,
+    series VARCHAR(64) PRIMARY KEY,
+    token VARCHAR(64) NOT NULL,
+    last_used TIMESTAMP NOT NULL
+);

@@ -28,6 +28,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.oauth2.client.registration.ClientRegistration;
 import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
+import org.springframework.security.web.authentication.rememberme.PersistentTokenBasedRememberMeServices;
+import org.springframework.security.web.authentication.rememberme.PersistentTokenRepository;
+import org.springframework.security.web.authentication.rememberme.JdbcTokenRepositoryImpl;
+import javax.sql.DataSource;
 
 @Configuration
 @EnableWebSecurity
@@ -48,8 +52,13 @@ public class SecurityConfig {
     @Autowired
     private OAuth2LoginSuccessHandler oAuth2LoginSuccessHandler;
 
+    @Autowired
+    private DataSource dataSource;
+
     @Value("${app.admin.email:}")
     private String adminEmailProperty;
+
+    private static final String REMEMBER_ME_KEY = "foodHistoryRememberMeKey";
 
     // OAuth users will always be merged into existing accounts that match by email
 
@@ -64,6 +73,15 @@ public class SecurityConfig {
                 .loginPage("/login")
                 .defaultSuccessUrl("/foods", true)
                 .permitAll()
+            )
+            .rememberMe(rememberMe -> rememberMe
+                .key(REMEMBER_ME_KEY)
+                .tokenRepository(persistentTokenRepository())
+                .tokenValiditySeconds(2592000) // 30 天
+                .userDetailsService(customUserDetailsService)
+                .rememberMeParameter("remember-me")
+                .rememberMeCookieName("food-history-remember-me")
+                .alwaysRemember(true) // 自動啟用 remember me
             );
 
         // Only enable OAuth2 login when a ClientRegistrationRepository is present
@@ -84,6 +102,14 @@ public class SecurityConfig {
                 .userInfoEndpoint(userInfo -> userInfo
                     .oidcUserService(oidcUserService())
                 )
+            ).rememberMe(rememberMe -> rememberMe
+                .key(REMEMBER_ME_KEY)
+                .tokenRepository(persistentTokenRepository())
+                .tokenValiditySeconds(2592000) // 30 天
+                .userDetailsService(customUserDetailsService)
+                .rememberMeParameter("remember-me")
+                .rememberMeCookieName("food-history-remember-me")
+                .alwaysRemember(true) // 自動啟用 remember me
             );
         } else {
             logger.warn("OAuth2 client registrations not found. Google login will be disabled until client-id/secret are configured.");
@@ -92,6 +118,9 @@ public class SecurityConfig {
         http
             .logout(logout -> logout
                 .logoutSuccessUrl("/login?logout")
+                .deleteCookies("food-history-remember-me", "JSESSIONID")
+                .invalidateHttpSession(true)
+                .clearAuthentication(true)
                 .permitAll())
             .authenticationProvider(authenticationProvider())
             .csrf(csrf -> csrf.disable())
@@ -111,6 +140,29 @@ public class SecurityConfig {
         authProvider.setUserDetailsService(customUserDetailsService);
         authProvider.setPasswordEncoder(passwordEncoder());
         return authProvider;
+    }
+
+    @Bean
+    public PersistentTokenRepository persistentTokenRepository() {
+        JdbcTokenRepositoryImpl tokenRepository = new JdbcTokenRepositoryImpl();
+        tokenRepository.setDataSource(dataSource);
+        // 不自動建表，使用 schema.sql 中的定義
+        return tokenRepository;
+    }
+
+    @Bean
+    public PersistentTokenBasedRememberMeServices rememberMeServices() {
+        PersistentTokenBasedRememberMeServices rememberMeServices = 
+            new PersistentTokenBasedRememberMeServices(
+                REMEMBER_ME_KEY, 
+                customUserDetailsService, 
+                persistentTokenRepository()
+            );
+        rememberMeServices.setParameter("remember-me");
+        rememberMeServices.setCookieName("food-history-remember-me");
+        rememberMeServices.setTokenValiditySeconds(2592000); // 30 天
+        rememberMeServices.setAlwaysRemember(true);
+        return rememberMeServices;
     }
 
     @Bean
