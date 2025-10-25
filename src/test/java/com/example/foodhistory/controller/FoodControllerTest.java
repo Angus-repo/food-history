@@ -94,7 +94,7 @@ public class FoodControllerTest {
     public void testSave() throws Exception {
         Food food = new Food();
         when(imageFile.isEmpty()).thenReturn(true);
-        String viewName = foodController.save(food, imageFile, redirectAttributes);
+        String viewName = foodController.save(food, imageFile, false, redirectAttributes);
         assertEquals("redirect:/foods", viewName);
         verify(foodService).saveFood(food);
     }

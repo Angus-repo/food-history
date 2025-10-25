@@ -2,12 +2,17 @@ package com.example.foodhistory.controller;
 
 import com.example.foodhistory.model.Food;
 import com.example.foodhistory.service.FoodService;
+import com.example.foodhistory.service.FileStorageService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.*;
@@ -16,8 +21,9 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Controller
 @RequestMapping("/foods")
@@ -25,6 +31,9 @@ public class FoodController {
     
     @Autowired
     private FoodService foodService;
+    
+    @Autowired
+    private FileStorageService fileStorageService;
     
     @GetMapping
     public String list(@RequestParam(required = false) String keyword,
@@ -35,11 +44,6 @@ public class FoodController {
         // 創建分頁請求，按ID降序排列（最新的在前面）
         Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
         Page<Food> foodPage = foodService.searchFoods(keyword, pageable);
-        
-        // 只為當前頁的食物生成圖片URL
-        List<String> base64Images = foodPage.getContent().stream()
-                .map(food -> food.getImage() != null ? "data:" + food.getImageContentType() + ";base64," + Base64.getEncoder().encodeToString(food.getImage()) : null)
-                .collect(Collectors.toList());
         
         // 處理搜尋歷史
         if (keyword != null && !keyword.trim().isEmpty()) {
@@ -55,7 +59,6 @@ public class FoodController {
             allRecentSearches.subList(0, 5) : allRecentSearches;
                 
         model.addAttribute("foods", foodPage.getContent());
-        model.addAttribute("base64Images", base64Images);
         model.addAttribute("keyword", keyword);
         model.addAttribute("currentPage", page);
         model.addAttribute("totalPages", foodPage.getTotalPages());
@@ -72,7 +75,7 @@ public class FoodController {
     public String createForm(Model model) {
         Food food = new Food();
         model.addAttribute("food", food);
-        model.addAttribute("imageUrl", null);
+        model.addAttribute("hasImage", false);
         return "food/form";
     }
     
@@ -82,18 +85,29 @@ public class FoodController {
         if (food == null) {
             return "redirect:/foods";
         }
-        if (food.getImage() != null) {
-            model.addAttribute("imageUrl", "data:" + food.getImageContentType() + ";base64," + Base64.getEncoder().encodeToString(food.getImage()));
-        }
         model.addAttribute("food", food);
+        model.addAttribute("hasImage", food.getImagePath() != null && fileStorageService.imageExists(food.getImagePath()));
         return "food/form";
     }
     
     @PostMapping
     public String save(@ModelAttribute Food food, 
                       @RequestParam(value = "imageFile", required = false) MultipartFile imageFile,
+                      @RequestParam(value = "removeImage", required = false) Boolean removeImage,
                       RedirectAttributes redirectAttributes) {
         try {
+            // 先儲存食物資料以取得 ID
+            Food savedFood = foodService.saveFood(food);
+            
+            // 處理圖片移除
+            if (Boolean.TRUE.equals(removeImage) && savedFood.getImagePath() != null) {
+                fileStorageService.deleteImage(savedFood.getImagePath());
+                savedFood.setImagePath(null);
+                savedFood.setImageContentType(null);
+                foodService.saveFood(savedFood);
+            }
+            
+            // 處理圖片上傳
             if (imageFile != null && !imageFile.isEmpty()) {
                 String contentType = imageFile.getContentType();
                 if (contentType != null && (
@@ -101,22 +115,22 @@ public class FoodController {
                     contentType.equals(MediaType.IMAGE_PNG_VALUE) ||
                     contentType.equals(MediaType.IMAGE_GIF_VALUE))) {
                     
-                    food.setImage(imageFile.getBytes());
-                    food.setImageContentType(contentType);
+                    // 刪除舊圖片
+                    if (savedFood.getImagePath() != null) {
+                        fileStorageService.deleteImage(savedFood.getImagePath());
+                    }
+                    
+                    // 儲存新圖片
+                    String filename = fileStorageService.storeImage(imageFile, savedFood.getId());
+                    savedFood.setImagePath(filename);
+                    savedFood.setImageContentType(contentType);
+                    foodService.saveFood(savedFood);
                 } else {
                     redirectAttributes.addFlashAttribute("error", "只支援 JPEG、PNG 或 GIF 格式的圖片");
-                    return "redirect:/foods" + (food.getId() != null ? "/" + food.getId() + "/edit" : "/new");
-                }
-            } else if (food.getId() != null) {
-                // 如果是編輯模式且沒有上傳新圖片，保留原有圖片
-                Food existingFood = foodService.getFoodById(food.getId());
-                if (existingFood != null) {
-                    food.setImage(existingFood.getImage());
-                    food.setImageContentType(existingFood.getImageContentType());
+                    return "redirect:/foods/" + savedFood.getId() + "/edit";
                 }
             }
             
-            foodService.saveFood(food);
             redirectAttributes.addFlashAttribute("success", "食物資料已成功儲存");
             return "redirect:/foods";
             
@@ -129,6 +143,10 @@ public class FoodController {
     @DeleteMapping("/{id}")
     @ResponseBody
     public void delete(@PathVariable Long id) {
+        Food food = foodService.getFoodById(id);
+        if (food != null && food.getImagePath() != null) {
+            fileStorageService.deleteImage(food.getImagePath());
+        }
         foodService.deleteFood(id);
     }
     
@@ -186,5 +204,35 @@ public class FoodController {
         result.put("recentSearches", allRecentSearches);
         
         return result;
+    }
+    
+    // 提供影像檔案存取
+    @GetMapping("/images/{filename:.+}")
+    @ResponseBody
+    public ResponseEntity<Resource> serveImage(@PathVariable String filename) {
+        try {
+            Path filePath = fileStorageService.getImagePath(filename);
+            if (filePath == null || !Files.exists(filePath)) {
+                return ResponseEntity.notFound().build();
+            }
+            
+            Resource resource = new UrlResource(filePath.toUri());
+            if (resource.exists() && resource.isReadable()) {
+                // 從檔名判斷 content type
+                String contentType = Files.probeContentType(filePath);
+                if (contentType == null) {
+                    contentType = MediaType.APPLICATION_OCTET_STREAM_VALUE;
+                }
+                
+                return ResponseEntity.ok()
+                        .contentType(MediaType.parseMediaType(contentType))
+                        .header(HttpHeaders.CACHE_CONTROL, "max-age=31536000")
+                        .body(resource);
+            } else {
+                return ResponseEntity.notFound().build();
+            }
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 }

@@ -74,22 +74,21 @@
                                    onchange="previewImage(this)" 
                                    capture="environment"
                                    form="foodForm">
+                            <input type="hidden" id="removeImageFlag" name="removeImage" value="false">
                             
-                            <div id="uploadPlaceholder" th:style="${imageUrl != null ? 'display: none;' : ''}">
+                            <div id="uploadPlaceholder" th:style="${hasImage ? 'display: none;' : ''}">
                                 <i class="bi bi-cloud-upload upload-icon"></i>
-                                <p class="upload-text">點擊或拖拽上傳圖片</p>
+                                <p class="upload-text">點擊或拖曳上傳圖片</p>
                                 <p class="upload-hint">支援 JPEG、PNG 或 GIF 格式</p>
                             </div>
                             
-                            <div th:if="${imageUrl != null}" class="image-preview-container">
-                                <img th:src="${imageUrl}" class="image-preview" id="imagePreview">
+                            <div th:if="${hasImage}" class="image-preview-container">
+                                <img th:src="@{'/foods/images/' + ${food.imagePath}}" class="image-preview" id="imagePreview">
                                 <button type="button" class="image-remove-btn" onclick="removeImage(event)" title="移除圖片">
                                     <i class="bi bi-x"></i>
                                 </button>
                             </div>
-                        </div>
-                        
-                        <div id="uploadProgress" class="progress-bar hidden">
+                        </div>                        <div id="uploadProgress" class="progress-bar hidden">
                             <div class="progress-fill" style="width: 0%"></div>
                         </div>
                     </div>
@@ -333,8 +332,11 @@
         function removeImage(event) {
             event.stopPropagation();
             
-            // 清除文件輸入
+            // 清除檔案輸入
             document.getElementById('imageFile').value = '';
+            
+            // 設定移除旗標
+            document.getElementById('removeImageFlag').value = 'true';
             
             // 移除圖片預覽容器
             const container = document.querySelector('.image-preview-container');

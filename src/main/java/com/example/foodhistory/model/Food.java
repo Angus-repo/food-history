@@ -29,9 +29,8 @@ public class Food {
     @Column(length = 100)
     private String notes;
     
-    @Lob
-    @Column(columnDefinition = "BLOB")
-    private byte[] image;
+    @Column(name = "image_path")
+    private String imagePath;
     
     @Column(name = "image_content_type")
     private String imageContentType;

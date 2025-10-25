@@ -171,11 +171,11 @@
                 
                 <!-- 食物圖片 -->
                 <div class="relative" style="height: 200px; overflow: hidden;">
-                    <img th:if="${base64Images[iterStat.index] != null}" 
-                         th:src="${base64Images[iterStat.index]}"
+                    <img th:if="${food.imagePath != null}" 
+                         th:src="@{'/foods/images/' + ${food.imagePath}}"
                          class="food-card-image"
                          th:alt="${food.name}">
-                    <div th:unless="${base64Images[iterStat.index] != null}" 
+                    <div th:unless="${food.imagePath != null}" 
                          class="food-card-image flex items-center justify-center"
                          style="background: linear-gradient(135deg, var(--secondary-100) 0%, var(--secondary-200) 100%);">
                         <i class="bi bi-image" style="font-size: 3rem; color: var(--secondary-400);"></i>
