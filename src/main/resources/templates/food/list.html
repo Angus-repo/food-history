@@ -213,26 +213,6 @@
                     </div>
                 </div>
 
-                <!-- 食物圖片（移到名稱下方） -->
-                <div class="relative food-card-image-wrapper" style="height: 220px; overflow: hidden;">
-                    <img th:if="${food.imagePath != null}" 
-                         th:src="@{'/foods/images/' + ${food.imagePath}}"
-                         class="food-card-image enhanced-image"
-                         th:alt="${food.name}">
-                    <div th:unless="${food.imagePath != null}" 
-                         class="food-card-image flex items-center justify-center enhanced-placeholder"
-                         style="background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);">
-                        <i class="bi bi-image" style="font-size: 3.5rem; color: #9ca3af;"></i>
-                    </div>
-                    <!-- 編輯提示 -->
-                    <div class="edit-overlay enhanced-overlay">
-                        <div class="edit-hint">
-                            <i class="bi bi-pencil-square"></i>
-                            <span>點擊編輯</span>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- 食物資訊 -->
                 <div class="food-card-content enhanced-content">
                     <!-- 碳水化合物資訊 -->
@@ -567,10 +547,11 @@
         /* 增強版食物卡片樣式 */
         .enhanced-card {
             position: relative;
-            border: 2px solid transparent;
+            border: 2px solid #5174a8; /* Bootstrap primary 色 */
             box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15), 0 2px 6px rgba(0, 0, 0, 0.1);
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             overflow: visible;
+            border-radius: var(--radius-xl);
         }
         
         .enhanced-card:hover {
@@ -610,7 +591,6 @@
         
         .food-card-image-wrapper {
             position: relative;
-            border-radius: var(--radius-xl) var(--radius-xl) 0 0;
             overflow: hidden;
         }
         
@@ -638,6 +618,7 @@
         .enhanced-content {
             padding: var(--space-5);
             background: linear-gradient(to bottom, white 0%, #fafafa 100%);
+            border-radius: 0 0 var(--radius-xl) var(--radius-xl); /* 只設定左下角和右下角的圓角 */
         }
         
         .food-card-title {
@@ -658,7 +639,7 @@
         .food-portion-badge-image .food-unit {
             font-size: 1rem;
             color: var(--primary-600);
-            background: rgba(243,244,246,0.5); /* #f3f4f6 半透明 */
+            background: rgba(243,244,246,0.8); /* #f3f4f6 80% 透明度 */
             border-radius: 1rem;
             padding: 0.1em 0.8em;
             font-weight: 700;
