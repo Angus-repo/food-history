@@ -98,6 +98,8 @@
             <div class="lg:col-span-2">
                 <form id="foodForm" th:action="@{/foods}" method="post" enctype="multipart/form-data" th:object="${food}">
                     <input type="hidden" th:field="*{id}">
+                    <input type="hidden" th:field="*{imagePath}">
+                    <input type="hidden" th:field="*{imageContentType}">
                     
                     <!-- 基本資訊 -->
                     <div class="card slide-in" style="animation-delay: 0.1s;">
@@ -339,6 +341,12 @@
             
             // 設定移除旗標
             document.getElementById('removeImageFlag').value = 'true';
+            
+            // 清空隱藏欄位（重要：讓後端知道要刪除圖片）
+            const imagePathInput = document.querySelector('input[name="imagePath"]');
+            const imageContentTypeInput = document.querySelector('input[name="imageContentType"]');
+            if (imagePathInput) imagePathInput.value = '';
+            if (imageContentTypeInput) imageContentTypeInput.value = '';
             
             // 移除圖片預覽容器
             const container = document.querySelector('.image-preview-container');

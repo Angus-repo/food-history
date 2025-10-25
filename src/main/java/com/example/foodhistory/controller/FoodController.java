@@ -96,19 +96,28 @@ public class FoodController {
                       @RequestParam(value = "removeImage", required = false) Boolean removeImage,
                       RedirectAttributes redirectAttributes) {
         try {
+            // 如果是編輯操作，先取得原有資料
+            Food existingFood = null;
+            if (food.getId() != null) {
+                existingFood = foodService.getFoodById(food.getId());
+            }
+            
             // 先儲存食物資料以取得 ID
             Food savedFood = foodService.saveFood(food);
             
-            // 處理圖片移除
-            if (Boolean.TRUE.equals(removeImage) && savedFood.getImagePath() != null) {
-                fileStorageService.deleteImage(savedFood.getImagePath());
+            // 處理圖片移除（優先處理）
+            if (Boolean.TRUE.equals(removeImage)) {
+                // 如果有舊圖片，刪除它
+                if (existingFood != null && existingFood.getImagePath() != null) {
+                    fileStorageService.deleteImage(existingFood.getImagePath());
+                }
+                // 清空圖片資訊
                 savedFood.setImagePath(null);
                 savedFood.setImageContentType(null);
                 foodService.saveFood(savedFood);
             }
-            
             // 處理圖片上傳
-            if (imageFile != null && !imageFile.isEmpty()) {
+            else if (imageFile != null && !imageFile.isEmpty()) {
                 String contentType = imageFile.getContentType();
                 if (contentType != null && (
                     contentType.equals(MediaType.IMAGE_JPEG_VALUE) ||
@@ -116,8 +125,8 @@ public class FoodController {
                     contentType.equals(MediaType.IMAGE_GIF_VALUE))) {
                     
                     // 刪除舊圖片
-                    if (savedFood.getImagePath() != null) {
-                        fileStorageService.deleteImage(savedFood.getImagePath());
+                    if (existingFood != null && existingFood.getImagePath() != null) {
+                        fileStorageService.deleteImage(existingFood.getImagePath());
                     }
                     
                     // 儲存新圖片
@@ -129,6 +138,12 @@ public class FoodController {
                     redirectAttributes.addFlashAttribute("error", "只支援 JPEG、PNG 或 GIF 格式的圖片");
                     return "redirect:/foods/" + savedFood.getId() + "/edit";
                 }
+            }
+            // 沒有上傳新圖片也沒有移除圖片時，保持原有的圖片資訊
+            else if (existingFood != null && existingFood.getImagePath() != null) {
+                savedFood.setImagePath(existingFood.getImagePath());
+                savedFood.setImageContentType(existingFood.getImageContentType());
+                foodService.saveFood(savedFood);
             }
             
             redirectAttributes.addFlashAttribute("success", "食物資料已成功儲存");
