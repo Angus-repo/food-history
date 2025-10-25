@@ -21,6 +21,8 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -80,13 +82,23 @@ public class FoodController {
     }
     
     @GetMapping("/{id}/edit")
-    public String editForm(@PathVariable Long id, Model model) {
+    public String editForm(@PathVariable Long id, 
+                          @RequestParam(required = false) String keyword,
+                          @RequestParam(required = false) Integer page,
+                          @RequestParam(required = false) Long foodId,
+                          Model model) {
         Food food = foodService.getFoodById(id);
         if (food == null) {
             return "redirect:/foods";
         }
         model.addAttribute("food", food);
         model.addAttribute("hasImage", food.getImagePath() != null && fileStorageService.imageExists(food.getImagePath()));
+        
+        // 將查詢參數傳遞給視圖，以便返回時使用
+        model.addAttribute("returnKeyword", keyword);
+        model.addAttribute("returnPage", page);
+        model.addAttribute("returnFoodId", foodId != null ? foodId : id);
+        
         return "food/form";
     }
     
@@ -94,6 +106,9 @@ public class FoodController {
     public String save(@ModelAttribute Food food, 
                       @RequestParam(value = "imageFile", required = false) MultipartFile imageFile,
                       @RequestParam(value = "removeImage", required = false) Boolean removeImage,
+                      @RequestParam(value = "returnKeyword", required = false) String returnKeyword,
+                      @RequestParam(value = "returnPage", required = false) Integer returnPage,
+                      @RequestParam(value = "returnFoodId", required = false) Long returnFoodId,
                       RedirectAttributes redirectAttributes) {
         try {
             // 如果是編輯操作，先取得原有資料
@@ -136,7 +151,25 @@ public class FoodController {
                     foodService.saveFood(savedFood);
                 } else {
                     redirectAttributes.addFlashAttribute("error", "只支援 JPEG、PNG 或 GIF 格式的圖片");
-                    return "redirect:/foods/" + savedFood.getId() + "/edit";
+                    StringBuilder errorRedirect = new StringBuilder("redirect:/foods/" + savedFood.getId() + "/edit");
+                    List<String> errorParams = new ArrayList<>();
+                    try {
+                        if (returnKeyword != null && !returnKeyword.trim().isEmpty()) {
+                            errorParams.add("keyword=" + URLEncoder.encode(returnKeyword, "UTF-8"));
+                        }
+                        if (returnPage != null) {
+                            errorParams.add("page=" + returnPage);
+                        }
+                        if (returnFoodId != null) {
+                            errorParams.add("foodId=" + returnFoodId);
+                        }
+                        if (!errorParams.isEmpty()) {
+                            errorRedirect.append("?").append(String.join("&", errorParams));
+                        }
+                    } catch (UnsupportedEncodingException e) {
+                        // UTF-8 should always be supported
+                    }
+                    return errorRedirect.toString();
                 }
             }
             // 沒有上傳新圖片也沒有移除圖片時，保持原有的圖片資訊
@@ -147,11 +180,57 @@ public class FoodController {
             }
             
             redirectAttributes.addFlashAttribute("success", "食物資料已成功儲存");
-            return "redirect:/foods";
+            
+            // 建立重定向 URL，保留搜尋條件和分頁資訊
+            StringBuilder redirectUrl = new StringBuilder("redirect:/foods");
+            List<String> params = new ArrayList<>();
+            
+            try {
+                if (returnKeyword != null && !returnKeyword.trim().isEmpty()) {
+                    params.add("keyword=" + URLEncoder.encode(returnKeyword, "UTF-8"));
+                }
+                if (returnPage != null) {
+                    params.add("page=" + returnPage);
+                }
+                
+                if (!params.isEmpty()) {
+                    redirectUrl.append("?").append(String.join("&", params));
+                }
+            } catch (UnsupportedEncodingException e) {
+                // UTF-8 should always be supported
+            }
+            
+            // 添加錨點
+            Long targetFoodId = returnFoodId != null ? returnFoodId : savedFood.getId();
+            redirectUrl.append("#food-").append(targetFoodId);
+            
+            return redirectUrl.toString();
             
         } catch (IOException e) {
             redirectAttributes.addFlashAttribute("error", "圖片處理失敗，請稍後再試");
-            return "redirect:/foods" + (food.getId() != null ? "/" + food.getId() + "/edit" : "/new");
+            if (food.getId() != null) {
+                StringBuilder errorRedirect = new StringBuilder("redirect:/foods/" + food.getId() + "/edit");
+                List<String> errorParams = new ArrayList<>();
+                try {
+                    if (returnKeyword != null && !returnKeyword.trim().isEmpty()) {
+                        errorParams.add("keyword=" + URLEncoder.encode(returnKeyword, "UTF-8"));
+                    }
+                    if (returnPage != null) {
+                        errorParams.add("page=" + returnPage);
+                    }
+                    if (returnFoodId != null) {
+                        errorParams.add("foodId=" + returnFoodId);
+                    }
+                    if (!errorParams.isEmpty()) {
+                        errorRedirect.append("?").append(String.join("&", errorParams));
+                    }
+                } catch (UnsupportedEncodingException ex) {
+                    // UTF-8 should always be supported
+                }
+                return errorRedirect.toString();
+            } else {
+                return "redirect:/foods/new";
+            }
         }
     }
     

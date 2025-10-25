@@ -166,9 +166,13 @@
 
         <div th:unless="${#lists.isEmpty(foods)}" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div th:each="food, iterStat : ${foods}" 
+                 th:id="'food-' + ${food.id}"
                  class="food-card card slide-in clickable-card enhanced-card"
                  th:style="'animation-delay: ' + ${iterStat.index * 0.1} + 's'"
-                 th:onclick="'window.location.href=\'/foods/' + ${food.id} + '/edit\''">
+                 th:data-food-id="${food.id}"
+                 th:data-keyword="${keyword}"
+                 th:data-page="${currentPage}"
+                 onclick="navigateToEditFromCard(this)">
                 <!-- 最愛標記 -->
                 <div th:if="${food.isFavorite}" class="favorite-badge">
                     <i class="bi bi-star-fill"></i>
@@ -400,6 +404,64 @@
 
     <script>
         let deleteId = null;
+
+        // 頁面載入後自動滾動到指定的食物記錄
+        document.addEventListener('DOMContentLoaded', function() {
+            // 檢查 URL 中是否有錨點（例如：#food-123）
+            const hash = window.location.hash;
+            if (hash && hash.startsWith('#food-')) {
+                // 延遲執行以確保頁面完全載入
+                setTimeout(function() {
+                    const element = document.querySelector(hash);
+                    if (element) {
+                        // 滾動到元素位置，並留一些上方空間
+                        const elementPosition = element.getBoundingClientRect().top + window.pageYOffset;
+                        const offsetPosition = elementPosition - 80; // 80px 是為了留出頂部空間
+                        
+                        window.scrollTo({
+                            top: offsetPosition,
+                            behavior: 'smooth'
+                        });
+                        
+                        // 添加高亮效果
+                        element.classList.add('highlight-card');
+                        setTimeout(function() {
+                            element.classList.remove('highlight-card');
+                        }, 2000);
+                    }
+                }, 300);
+            }
+        });
+
+        // 從卡片元素導航到編輯頁面
+        function navigateToEditFromCard(element) {
+            const foodId = element.dataset.foodId;
+            const keyword = element.dataset.keyword;
+            const page = element.dataset.page;
+            
+            navigateToEdit(foodId, keyword, page);
+        }
+
+        // 導航到編輯頁面，保留搜尋條件和分頁資訊
+        function navigateToEdit(foodId, keyword, page) {
+            let url = '/foods/' + foodId + '/edit?';
+            const params = new URLSearchParams();
+            
+            // 保留搜尋關鍵字
+            if (keyword && keyword !== 'null' && keyword !== '' && keyword !== 'undefined') {
+                params.append('keyword', keyword);
+            }
+            
+            // 保留當前頁碼
+            if (page && page !== 'null' && page !== 'undefined') {
+                params.append('page', page);
+            }
+            
+            // 保留食物ID作為錨點
+            params.append('foodId', foodId);
+            
+            window.location.href = url + params.toString();
+        }
 
         function deleteFood(id) {
             deleteId = id;
@@ -773,6 +835,21 @@
             }
         }
 
+        /* 高亮卡片動畫 */
+        .highlight-card {
+            animation: highlightPulse 1s ease-in-out 2;
+            box-shadow: 0 0 0 4px rgba(81, 116, 168, 0.3) !important;
+        }
+        
+        @keyframes highlightPulse {
+            0%, 100% {
+                box-shadow: 0 0 0 4px rgba(81, 116, 168, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 0 8px rgba(81, 116, 168, 0.5);
+            }
+        }
+        
         /* 工具類 */
         .flex-1 { flex: 1; }
         .relative { position: relative; }

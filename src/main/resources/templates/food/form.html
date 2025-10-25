@@ -17,7 +17,9 @@
                 <span th:text="${food.id == null ? '新增食物' : '編輯食物'}">新增/編輯食物</span>
             </h1>
             <div class="flex gap-3">
-                <a href="/foods" class="btn btn-primary">
+                <a href="#" 
+                   onclick="event.preventDefault(); goBackToList();" 
+                   class="btn btn-primary">
                     <i class="bi bi-arrow-left"></i>
                     返回列表
                 </a>
@@ -100,6 +102,9 @@
                     <input type="hidden" th:field="*{id}">
                     <input type="hidden" th:field="*{imagePath}">
                     <input type="hidden" th:field="*{imageContentType}">
+                    <input type="hidden" id="returnKeyword" name="returnKeyword" th:value="${returnKeyword}" />
+                    <input type="hidden" id="returnPage" name="returnPage" th:value="${returnPage}" />
+                    <input type="hidden" id="returnFoodId" name="returnFoodId" th:value="${returnFoodId}" />
                     
                     <!-- 基本資訊 -->
                     <div class="card slide-in" style="animation-delay: 0.1s;">
@@ -255,7 +260,9 @@
                                     <i class="bi bi-save"></i>
                                     <span th:text="${food.id == null ? '新增食物' : '更新食物'}">儲存</span>
                                 </button>
-                                <a href="/foods" class="btn btn-cancel btn-lg">
+                                <a href="#" 
+                                   onclick="event.preventDefault(); goBackToList();" 
+                                   class="btn btn-cancel btn-lg">
                                     <i class="bi bi-x-lg"></i>
                                     取消
                                 </a>
@@ -271,6 +278,60 @@
     </div>
 
     <script>
+        // 儲存從列表頁面帶過來的搜尋條件和分頁資訊
+        let returnParams = {
+            keyword: '',
+            page: 0,
+            foodId: ''
+        };
+        
+        // 頁面載入時取得 URL 參數
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            // 取得搜尋關鍵字
+            if (urlParams.has('keyword')) {
+                returnParams.keyword = urlParams.get('keyword');
+                document.getElementById('returnKeyword').value = returnParams.keyword;
+            }
+            
+            // 取得頁碼
+            if (urlParams.has('page')) {
+                returnParams.page = urlParams.get('page');
+                document.getElementById('returnPage').value = returnParams.page;
+            }
+            
+            // 取得食物 ID
+            if (urlParams.has('foodId')) {
+                returnParams.foodId = urlParams.get('foodId');
+                document.getElementById('returnFoodId').value = returnParams.foodId;
+            }
+        });
+        
+        // 返回列表頁面並保留搜尋條件、分頁和錨點
+        function goBackToList() {
+            let url = '/foods?';
+            const params = new URLSearchParams();
+            
+            // 保留搜尋關鍵字
+            if (returnParams.keyword) {
+                params.append('keyword', returnParams.keyword);
+            }
+            
+            // 保留頁碼
+            if (returnParams.page) {
+                params.append('page', returnParams.page);
+            }
+            
+            // 添加錨點
+            let anchor = '';
+            if (returnParams.foodId) {
+                anchor = '#food-' + returnParams.foodId;
+            }
+            
+            window.location.href = url + params.toString() + anchor;
+        }
+        
         // 攔截 HTML5 原生驗證訊息，改用自訂訊息
         document.addEventListener('DOMContentLoaded', function() {
             const form = document.getElementById('foodForm');
