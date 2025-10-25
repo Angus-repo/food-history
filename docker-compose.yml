@@ -12,4 +12,4 @@ services:
       - ADMIN_EMAIL=${ADMIN_EMAIL}
     restart: always
     volumes:
-      - ./data:/app/db
+      - ./data:/app/data
