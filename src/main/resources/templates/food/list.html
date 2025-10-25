@@ -14,10 +14,18 @@
     <div class="container fade-in">
         <!-- 頁面標題區域 -->
         <header class="page-header">
-            <h1 class="page-title">
-                <i class="bi bi-journal-bookmark"></i>
-                我的食物歷史
-            </h1>
+            <div class="flex items-center justify-between" style="width: 100%;">
+                <h1 class="page-title">
+                    <i class="bi bi-journal-bookmark"></i>
+                    我的食物歷史
+                </h1>
+                <form method="post" action="/logout" style="display: inline;">
+                    <button type="submit" class="btn btn-outline-secondary btn-sm">
+                        <i class="bi bi-box-arrow-right"></i>
+                        登出
+                    </button>
+                </form>
+            </div>
             <div class="flex gap-3">
                 <a href="/foods/new" class="btn btn-primary btn-lg">
                     <i class="bi bi-plus-lg"></i>

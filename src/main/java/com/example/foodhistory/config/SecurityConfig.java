@@ -90,7 +90,9 @@ public class SecurityConfig {
         }
 
         http
-            .logout(logout -> logout.permitAll())
+            .logout(logout -> logout
+                .logoutSuccessUrl("/login?logout")
+                .permitAll())
             .authenticationProvider(authenticationProvider())
             .csrf(csrf -> csrf.disable())
             .headers(headers -> headers.frameOptions().sameOrigin());

@@ -104,6 +104,12 @@
                         <p class="app-subtitle">記錄您的美食時光</p>
                     </div>
                     
+                    <!-- 登出成功訊息 -->
+                    <div th:if="${param.logout}" class="alert alert-success" style="margin-bottom: 1.5rem;">
+                        <i class="bi bi-check-circle"></i>
+                        您已成功登出
+                    </div>
+                    
                     <!-- 歡迎文字 -->
                     <div class="welcome-text">
                         <p>歡迎回來！請登入以繼續使用</p>
