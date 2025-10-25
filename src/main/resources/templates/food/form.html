@@ -509,19 +509,19 @@
         document.getElementById('foodForm').addEventListener('submit', function(event) {
             // 清除所有錯誤樣式
             document.querySelectorAll('.input-error').forEach(el => el.classList.remove('input-error'));
-            
+
             const name = document.getElementById('name').value.trim();
             const quantity = document.getElementById('quantity').value;
             const coefficient = document.getElementById('coefficient').value;
             const carbGrams = document.getElementById('carbGrams').value;
-            
+
             // 驗證必填欄位
             if (!name) {
                 event.preventDefault();
                 showValidationError('請輸入食物名稱', 'name');
                 return false;
             }
-            
+
             // 驗證數量格式（如果有填寫）
             if (quantity) {
                 const quantityNum = parseFloat(quantity);
@@ -548,54 +548,61 @@
                     return false;
                 }
             }
-            
+
             // 驗證系數格式（如果有填寫）
-            if (coefficient) {
+            let hasCoefficient = false;
+            if (coefficient !== "" && coefficient !== null) {
                 const coefficientNum = parseFloat(coefficient);
-                if (isNaN(coefficientNum)) {
+                if (!isNaN(coefficientNum)) {
+                    hasCoefficient = true;
+                    if (coefficientNum < 0) {
+                        event.preventDefault();
+                        showValidationError('系數不能小於 0', 'coefficient');
+                        return false;
+                    }
+                    if (coefficientNum > 1) {
+                        event.preventDefault();
+                        showValidationError('系數不能大於 1', 'coefficient');
+                        return false;
+                    }
+                } else {
                     event.preventDefault();
                     showValidationError('系數格式不正確，請輸入有效的數字', 'coefficient');
                     return false;
                 }
-                if (coefficientNum < 0) {
-                    event.preventDefault();
-                    showValidationError('系數不能小於 0', 'coefficient');
-                    return false;
-                }
-                if (coefficientNum > 1) {
-                    event.preventDefault();
-                    showValidationError('系數不能大於 1', 'coefficient');
-                    return false;
-                }
             }
-            
+
             // 驗證碳水化合物格式（如果有填寫）
-            if (carbGrams) {
+            let hasCarb = false;
+            if (carbGrams !== "" && carbGrams !== null) {
                 const carbGramsNum = parseFloat(carbGrams);
-                if (isNaN(carbGramsNum)) {
+                if (!isNaN(carbGramsNum)) {
+                    hasCarb = true;
+                    // 只有 carbGrams 不是 0.0 才檢查最小值
+                    if (carbGramsNum !== 0.0 && carbGramsNum < 0.1) {
+                        event.preventDefault();
+                        showValidationError('碳水化合物不能小於 0.1', 'carbGrams');
+                        return false;
+                    }
+                    if (carbGramsNum > 999) {
+                        event.preventDefault();
+                        showValidationError('碳水化合物不能大於 999', 'carbGrams');
+                        return false;
+                    }
+                } else {
                     event.preventDefault();
                     showValidationError('碳水化合物格式不正確，請輸入有效的數字', 'carbGrams');
                     return false;
                 }
-                if (carbGramsNum < 0.1) {
-                    event.preventDefault();
-                    showValidationError('碳水化合物不能小於 0.1', 'carbGrams');
-                    return false;
-                }
-                if (carbGramsNum > 999) {
-                    event.preventDefault();
-                    showValidationError('碳水化合物不能大於 999', 'carbGrams');
-                    return false;
-                }
             }
-            
-            // 驗證至少填寫系數或碳水化合物其中一項
-            if (!coefficient && !carbGrams) {
+
+            // 驗證至少填寫系數或碳水化合物其中一項（0.0 也算有填）
+            if (!hasCoefficient && !hasCarb) {
                 event.preventDefault();
                 showValidationError('請至少填寫系數或碳水化合物其中一項', 'coefficient');
                 return false;
             }
-            
+
             // 所有驗證通過，允許提交
             return true;
         });

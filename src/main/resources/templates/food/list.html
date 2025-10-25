@@ -169,13 +169,27 @@
                  class="food-card card slide-in clickable-card enhanced-card"
                  th:style="'animation-delay: ' + ${iterStat.index * 0.1} + 's'"
                  th:onclick="'window.location.href=\'/foods/' + ${food.id} + '/edit\''">
-                
                 <!-- 最愛標記 -->
                 <div th:if="${food.isFavorite}" class="favorite-badge">
                     <i class="bi bi-star-fill"></i>
                 </div>
-                
-                <!-- 食物圖片 -->
+
+                <!-- 食物名稱（移到最上方） -->
+                <div class="food-card-title-wrapper" style="padding: var(--space-5) var(--space-5) 0 var(--space-5);">
+                    <h3 class="food-card-title" style="margin-bottom: 0;">
+                        <span class="food-name" th:text="${food.name}">食物名稱</span>
+                        <span th:if="${food.quantity != null and food.quantity > 0 and food.unit != null and food.unit != ''}" 
+                              class="food-unit">
+                            (<span th:text="${food.quantity % 1 == 0 ? T(java.lang.Math).round(food.quantity) : food.quantity}"></span><span th:text="${food.unit}"></span>)
+                        </span>
+                        <span th:if="${(food.quantity == null or food.quantity <= 0) and food.unit != null and food.unit != ''}" 
+                              class="food-unit">
+                            (<span th:text="${food.unit}"></span>)
+                        </span>
+                    </h3>
+                </div>
+
+                <!-- 食物圖片（移到名稱下方） -->
                 <div class="relative food-card-image-wrapper" style="height: 220px; overflow: hidden;">
                     <img th:if="${food.imagePath != null}" 
                          th:src="@{'/foods/images/' + ${food.imagePath}}"
@@ -186,7 +200,6 @@
                          style="background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);">
                         <i class="bi bi-image" style="font-size: 3.5rem; color: #9ca3af;"></i>
                     </div>
-                    
                     <!-- 編輯提示 -->
                     <div class="edit-overlay enhanced-overlay">
                         <div class="edit-hint">
@@ -198,22 +211,10 @@
 
                 <!-- 食物資訊 -->
                 <div class="food-card-content enhanced-content">
-                    <h3 class="food-card-title">
-                        <span class="food-name" th:text="${food.name}">食物名稱</span>
-                        <span th:if="${food.quantity != null and food.quantity > 0 and food.unit != null and food.unit != ''}" 
-                              class="food-unit">
-                            (<span th:text="${food.quantity % 1 == 0 ? T(java.lang.Math).round(food.quantity) : food.quantity}"></span><span th:text="${food.unit}"></span>)
-                        </span>
-                        <span th:if="${(food.quantity == null or food.quantity <= 0) and food.unit != null and food.unit != ''}" 
-                              class="food-unit">
-                            (<span th:text="${food.unit}"></span>)
-                        </span>
-                    </h3>
-                    
                     <!-- 碳水化合物資訊 -->
                     <div class="food-card-carb-info">
                         <!-- 如果有比例，顯示比例資訊 -->
-                        <div th:if="${food.coefficient != null}" class="carb-info-item">
+                        <div th:if="${food.coefficient != null and food.coefficient != 0.0}" class="carb-info-item">
                             <div class="carb-info-label">
                                 <i class="bi bi-percent text-primary-500"></i>
                                 <span>系數</span>
@@ -223,9 +224,8 @@
                                 <small>比例值</small>
                             </div>
                         </div>
-                        
                         <!-- 如果有具體克數，顯示克數資訊 -->
-                        <div th:if="${food.carbGrams != null}" class="carb-info-item">
+                        <div th:if="${food.carbGrams != null and food.carbGrams != 0.0}" class="carb-info-item">
                             <div class="carb-info-label">
                                 <i class="bi bi-graph-up text-success-500"></i>
                                 <span>碳水化合物(克)</span>
@@ -235,7 +235,6 @@
                                 <small>此份食物</small>
                             </div>
                         </div>
-                        
                         <!-- 如果兩者都沒有 -->
                         <div th:if="${food.coefficient == null and food.carbGrams == null}" class="carb-info-item">
                             <div class="carb-info-empty">
@@ -244,7 +243,6 @@
                             </div>
                         </div>
                     </div>
-                    
                     <!-- 備註資訊 -->
                     <div th:if="${food.notes != null and food.notes != ''}" class="food-card-notes-section">
                         <div class="notes-label">
@@ -253,7 +251,6 @@
                         </div>
                         <p class="food-card-notes" th:text="${food.notes}">食物備註...</p>
                     </div>
-                    
                     <!-- 操作提示 -->
                     <div class="food-card-actions">
                         <div class="edit-prompt">
