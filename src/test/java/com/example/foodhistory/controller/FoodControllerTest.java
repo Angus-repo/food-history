@@ -85,7 +85,7 @@ public class FoodControllerTest {
     public void testEditForm() {
         Food food = new Food();
         when(foodService.getFoodById(1L)).thenReturn(food);
-        String viewName = foodController.editForm(1L, model);
+        String viewName = foodController.editForm(1L, null, null, null, model);
         assertEquals("food/form", viewName);
         verify(model).addAttribute("food", food);
     }
@@ -93,10 +93,16 @@ public class FoodControllerTest {
     @Test
     public void testSave() throws Exception {
         Food food = new Food();
+        food.setId(1L);
+        Food savedFood = new Food();
+        savedFood.setId(1L);
+        when(foodService.getFoodById(1L)).thenReturn(food);
+        when(foodService.saveFood(any(Food.class))).thenReturn(savedFood);
         when(imageFile.isEmpty()).thenReturn(true);
-        String viewName = foodController.save(food, imageFile, false, redirectAttributes);
-        assertEquals("redirect:/foods", viewName);
-        verify(foodService).saveFood(food);
+        String viewName = foodController.save(food, imageFile, false, null, null, null, redirectAttributes);
+        // URL 會包含 #food-1 錨點
+        assertEquals("redirect:/foods#food-1", viewName);
+        verify(foodService).saveFood(any(Food.class));
     }
 
     @Test
