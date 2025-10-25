@@ -213,7 +213,7 @@
                                 <span>系數</span>
                             </div>
                             <div class="carb-info-value primary">
-                                <span th:text="${food.coefficient}">0.23</span>
+                                <span th:text="${food.coefficient}"></span>
                                 <small>比例值</small>
                             </div>
                         </div>
@@ -222,10 +222,10 @@
                         <div th:if="${food.carbGrams != null}" class="carb-info-item">
                             <div class="carb-info-label">
                                 <i class="bi bi-graph-up text-success-500"></i>
-                                <span>碳水化合物</span>
+                                <span>碳水化合物(克)</span>
                             </div>
                             <div class="carb-info-value success">
-                                <span th:text="${food.carbGrams} + 'g'">25g</span>
+                                <span th:text="${food.carbGrams % 1 == 0 ? #numbers.formatInteger(food.carbGrams, 0) : #numbers.formatDecimal(food.carbGrams, 1, 'DEFAULT', 1, 'DEFAULT')}"></span>
                                 <small>此份食物</small>
                             </div>
                         </div>

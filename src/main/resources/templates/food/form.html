@@ -96,7 +96,7 @@
 
             <!-- 右側：表單資料 -->
             <div class="lg:col-span-2">
-                <form id="foodForm" th:action="@{/foods}" method="post" enctype="multipart/form-data" th:object="${food}">
+                <form id="foodForm" th:action="@{/foods}" method="post" enctype="multipart/form-data" th:object="${food}" novalidate>
                     <input type="hidden" th:field="*{id}">
                     <input type="hidden" th:field="*{imagePath}">
                     <input type="hidden" th:field="*{imageContentType}">
@@ -145,6 +145,7 @@
                                                 <option value="盒">盒</option>
                                                 <option value="塊">塊</option>
                                                 <option value="份">份</option>
+                                                <option value="碗">碗</option>
                                                 <option value="杯">杯</option>
                                                 <option value="條">條</option>
                                                 <option value="克">克</option>
@@ -185,7 +186,7 @@
                                 
                                 <div class="form-group">
                                     <label for="carbGrams" class="form-label">
-                                        碳水化合物 (g)（可選）
+                                        碳水化合物 (克)（可選）
                                         <span class="tooltip-icon" title="這份食物實際含有多少克碳水化合物">
                                             <i class="bi bi-info-circle"></i>
                                         </span>
@@ -270,6 +271,35 @@
     </div>
 
     <script>
+        // 攔截 HTML5 原生驗證訊息，改用自訂訊息
+        document.addEventListener('DOMContentLoaded', function() {
+            const form = document.getElementById('foodForm');
+            const inputs = form.querySelectorAll('input[type="number"], input[required]');
+            
+            inputs.forEach(input => {
+                input.addEventListener('invalid', function(e) {
+                    e.preventDefault();
+                    
+                    let message = '';
+                    const fieldName = this.id;
+                    
+                    if (this.validity.valueMissing) {
+                        message = '請輸入' + this.previousElementSibling?.textContent || '此欄位';
+                    } else if (this.validity.rangeUnderflow) {
+                        message = `${this.previousElementSibling?.textContent || '此欄位'}不能小於 ${this.min}`;
+                    } else if (this.validity.rangeOverflow) {
+                        message = `${this.previousElementSibling?.textContent || '此欄位'}不能大於 ${this.max}`;
+                    } else if (this.validity.stepMismatch) {
+                        message = `${this.previousElementSibling?.textContent || '此欄位'}必須是 ${this.step} 的倍數`;
+                    }
+                    
+                    if (message) {
+                        showValidationError(message, fieldName);
+                    }
+                });
+            });
+        });
+        
         // 圖片預覽功能
         function previewImage(input) {
             if (input.files && input.files[0]) {
@@ -418,33 +448,156 @@
             notesCounter.textContent = notesTextarea.value.length + '/100';
         }
         
+        // 顯示驗證錯誤提示的通用函數
+        function showValidationError(message, fieldId = null) {
+            console.log('顯示驗證錯誤:', message, fieldId); // 除錯用
+            
+            // 移除舊的錯誤提示
+            const oldAlert = document.querySelector('.validation-error-alert');
+            if (oldAlert) {
+                oldAlert.remove();
+            }
+            
+            // 顯示錯誤提示（固定在頂部）
+            const errorAlert = document.createElement('div');
+            errorAlert.className = 'alert alert-danger validation-error-alert fixed-top-alert';
+            errorAlert.innerHTML = `
+                <div class="alert-content">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <span>${message}</span>
+                </div>
+                <button type="button" class="alert-close-btn" onclick="this.parentElement.remove()">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            `;
+            
+            // 直接加入 body 並固定在頂部
+            document.body.appendChild(errorAlert);
+            
+            // 如果指定了欄位，則標記該欄位並滾動到該位置
+            if (fieldId) {
+                const field = document.getElementById(fieldId);
+                if (field) {
+                    field.classList.add('input-error');
+                    
+                    // 延遲聚焦，確保動畫完成
+                    setTimeout(() => {
+                        field.focus();
+                        // 滾動到錯誤欄位
+                        field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }, 100);
+                    
+                    // 當使用者修改欄位時移除錯誤樣式
+                    field.addEventListener('input', function() {
+                        field.classList.remove('input-error');
+                    }, { once: true });
+                }
+            } else {
+                // 沒有指定欄位時滾動到頂部
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+            
+            // 5秒後自動移除提示
+            setTimeout(() => {
+                if (errorAlert.parentNode) {
+                    errorAlert.remove();
+                }
+            }, 5000);
+        }
+        
         // 表單驗證
         document.getElementById('foodForm').addEventListener('submit', function(event) {
+            // 清除所有錯誤樣式
+            document.querySelectorAll('.input-error').forEach(el => el.classList.remove('input-error'));
+            
+            const name = document.getElementById('name').value.trim();
+            const quantity = document.getElementById('quantity').value;
             const coefficient = document.getElementById('coefficient').value;
             const carbGrams = document.getElementById('carbGrams').value;
             
-            if (!coefficient && !carbGrams) {
+            // 驗證必填欄位
+            if (!name) {
                 event.preventDefault();
-                
-                // 顯示錯誤提示
-                const errorAlert = document.createElement('div');
-                errorAlert.className = 'alert alert-danger';
-                errorAlert.innerHTML = '<i class="bi bi-exclamation-triangle"></i>請至少填寫系數或碳水化合物其中一項';
-                
-                const container = document.querySelector('.container');
-                const header = container.querySelector('.page-header');
-                container.insertBefore(errorAlert, header.nextSibling);
-                
-                // 滾動到頂部
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-                
-                // 3秒後自動移除提示
-                setTimeout(() => {
-                    errorAlert.remove();
-                }, 3000);
-                
+                showValidationError('請輸入食物名稱', 'name');
                 return false;
             }
+            
+            // 驗證數量格式（如果有填寫）
+            if (quantity) {
+                const quantityNum = parseFloat(quantity);
+                if (isNaN(quantityNum)) {
+                    event.preventDefault();
+                    showValidationError('數量格式不正確，請輸入有效的數字', 'quantity');
+                    return false;
+                }
+                if (quantityNum < 0.5) {
+                    event.preventDefault();
+                    showValidationError('數量不能小於 0.5', 'quantity');
+                    return false;
+                }
+                if (quantityNum > 999) {
+                    event.preventDefault();
+                    showValidationError('數量不能大於 999', 'quantity');
+                    return false;
+                }
+                // 檢查是否為 0.5 的倍數
+                const remainder = (quantityNum * 10) % 5;
+                if (remainder !== 0) {
+                    event.preventDefault();
+                    showValidationError('數量必須是 0.5 的倍數（例如：0.5、1、1.5、2、2.5...）', 'quantity');
+                    return false;
+                }
+            }
+            
+            // 驗證系數格式（如果有填寫）
+            if (coefficient) {
+                const coefficientNum = parseFloat(coefficient);
+                if (isNaN(coefficientNum)) {
+                    event.preventDefault();
+                    showValidationError('系數格式不正確，請輸入有效的數字', 'coefficient');
+                    return false;
+                }
+                if (coefficientNum < 0) {
+                    event.preventDefault();
+                    showValidationError('系數不能小於 0', 'coefficient');
+                    return false;
+                }
+                if (coefficientNum > 1) {
+                    event.preventDefault();
+                    showValidationError('系數不能大於 1', 'coefficient');
+                    return false;
+                }
+            }
+            
+            // 驗證碳水化合物格式（如果有填寫）
+            if (carbGrams) {
+                const carbGramsNum = parseFloat(carbGrams);
+                if (isNaN(carbGramsNum)) {
+                    event.preventDefault();
+                    showValidationError('碳水化合物格式不正確，請輸入有效的數字', 'carbGrams');
+                    return false;
+                }
+                if (carbGramsNum < 0.1) {
+                    event.preventDefault();
+                    showValidationError('碳水化合物不能小於 0.1', 'carbGrams');
+                    return false;
+                }
+                if (carbGramsNum > 999) {
+                    event.preventDefault();
+                    showValidationError('碳水化合物不能大於 999', 'carbGrams');
+                    return false;
+                }
+            }
+            
+            // 驗證至少填寫系數或碳水化合物其中一項
+            if (!coefficient && !carbGrams) {
+                event.preventDefault();
+                showValidationError('請至少填寫系數或碳水化合物其中一項', 'coefficient');
+                return false;
+            }
+            
+            // 所有驗證通過，允許提交
+            return true;
         });
 
         // 刪除功能
@@ -691,6 +844,95 @@
         .result-field {
             background: #f9f9f9;
             cursor: not-allowed;
+        }
+        
+        /* 驗證錯誤樣式 */
+        .input-error {
+            border-color: var(--danger-500) !important;
+            background-color: #fef2f2 !important;
+            animation: shake 0.4s ease;
+        }
+        
+        .input-error:focus {
+            border-color: var(--danger-600) !important;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2) !important;
+        }
+        
+        /* 固定在頂部的錯誤提示 */
+        .fixed-top-alert {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 9999;
+            margin: 0;
+            border-radius: 0;
+            padding: 1rem 2rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            animation: slideDownFromTop 0.4s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 1rem;
+            font-weight: 500;
+        }
+        
+        .fixed-top-alert .alert-content {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex: 1;
+            justify-content: center;
+        }
+        
+        .fixed-top-alert i.bi-exclamation-triangle {
+            font-size: 1.2rem;
+        }
+        
+        .alert-close-btn {
+            background: none;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            margin-left: 1rem;
+            opacity: 0.7;
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.1rem;
+        }
+        
+        .alert-close-btn:hover {
+            opacity: 1;
+            transform: scale(1.1);
+        }
+        
+        .alert-close-btn:active {
+            transform: scale(0.95);
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        
+        @keyframes slideDownFromTop {
+            from {
+                opacity: 0;
+                transform: translateY(-100%);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .validation-error-alert {
+            margin-top: var(--space-4);
+            margin-bottom: var(--space-4);
         }
         
         /* 響應式調整 */
