@@ -207,13 +207,13 @@
                     <!-- 碳水化合物資訊 -->
                     <div class="food-card-carb-info">
                         <!-- 如果有比例，顯示比例資訊 -->
-                        <div th:if="${food.servingSize != null and food.servingSize != ''}" class="carb-info-item">
+                        <div th:if="${food.coefficient != null}" class="carb-info-item">
                             <div class="carb-info-label">
                                 <i class="bi bi-percent text-primary-500"></i>
                                 <span>系數</span>
                             </div>
                             <div class="carb-info-value primary">
-                                <span th:text="${food.servingSize}">0.23</span>
+                                <span th:text="${food.coefficient}">0.23</span>
                                 <small>比例值</small>
                             </div>
                         </div>
@@ -231,7 +231,7 @@
                         </div>
                         
                         <!-- 如果兩者都沒有 -->
-                        <div th:if="${(food.servingSize == null or food.servingSize == '') and food.carbGrams == null}" class="carb-info-item">
+                        <div th:if="${food.coefficient == null and food.carbGrams == null}" class="carb-info-item">
                             <div class="carb-info-empty">
                                 <i class="bi bi-dash-circle text-secondary-400"></i>
                                 <span class="text-secondary-500">未設定碳水資訊</span>

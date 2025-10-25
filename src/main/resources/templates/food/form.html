@@ -159,7 +159,7 @@
                             
                             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div class="form-group">
-                                    <label for="servingSize" class="form-label">
+                                    <label for="coefficient" class="form-label">
                                         系數（可選）
                                         <span class="tooltip-icon" title="每100克食物中碳水系數，例如：白米飯約0.23（23%）">
                                             <i class="bi bi-info-circle"></i>
@@ -169,9 +169,8 @@
                                         <i class="bi bi-percent input-icon"></i>
                                         <input type="number" 
                                                class="form-control input-with-icon-padding carb-input" 
-                                               id="servingSize" 
-                                               th:value="${food.servingSize}" 
-                                               name="servingSize"
+                                               id="coefficient" 
+                                               th:field="*{coefficient}" 
                                                min="0" 
                                                max="1" 
                                                step="0.01" 
@@ -414,10 +413,10 @@
         
         // 表單驗證
         document.getElementById('foodForm').addEventListener('submit', function(event) {
-            const servingSize = document.getElementById('servingSize').value;
+            const coefficient = document.getElementById('coefficient').value;
             const carbGrams = document.getElementById('carbGrams').value;
             
-            if (!servingSize && !carbGrams) {
+            if (!coefficient && !carbGrams) {
                 event.preventDefault();
                 
                 // 顯示錯誤提示

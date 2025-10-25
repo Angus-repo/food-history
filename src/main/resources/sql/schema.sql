@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS users (
 CREATE TABLE IF NOT EXISTS foods (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(30) NOT NULL,
-    serving_size VARCHAR(10),
-    carb_grams INTEGER,
+    coefficient DOUBLE,
+    carb_grams DOUBLE,
     quantity DOUBLE,
     unit VARCHAR(10),
     notes VARCHAR(100),

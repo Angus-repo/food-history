@@ -14,8 +14,8 @@ public class Food {
     @Column(length = 30, nullable = false)
     private String name;
     
-    @Column(name = "serving_size")
-    private String servingSize;
+    @Column(name = "coefficient")
+    private Double coefficient;
     
     @Column(name = "carb_grams")
     private Double carbGrams;
