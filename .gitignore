@@ -1,8 +1,12 @@
 !.github/
 !.github/workflows/
 !.env.example
+!.gitkeep
 .*
 /target
 /logs
 /db
+/data
+!data/db/.gitkeep
+!data/images/.gitkeep
 node_modules/
