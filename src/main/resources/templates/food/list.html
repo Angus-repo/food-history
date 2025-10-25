@@ -136,6 +136,7 @@
                             <span class="text-secondary-600">
                                 <span th:text="${currentPage + 1}">1</span>/<span th:text="${totalPages}">1</span>
                             </span>
+                            <span>頁</span>
                         </div>
                     </div>
                     <div th:if="${keyword != null and keyword != ''}" class="stats-filter">
@@ -165,24 +166,29 @@
 
         <div th:unless="${#lists.isEmpty(foods)}" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div th:each="food, iterStat : ${foods}" 
-                 class="food-card card slide-in clickable-card"
+                 class="food-card card slide-in clickable-card enhanced-card"
                  th:style="'animation-delay: ' + ${iterStat.index * 0.1} + 's'"
                  th:onclick="'window.location.href=\'/foods/' + ${food.id} + '/edit\''">
                 
+                <!-- 最愛標記 -->
+                <div th:if="${food.isFavorite}" class="favorite-badge">
+                    <i class="bi bi-star-fill"></i>
+                </div>
+                
                 <!-- 食物圖片 -->
-                <div class="relative" style="height: 200px; overflow: hidden;">
+                <div class="relative food-card-image-wrapper" style="height: 220px; overflow: hidden;">
                     <img th:if="${food.imagePath != null}" 
                          th:src="@{'/foods/images/' + ${food.imagePath}}"
-                         class="food-card-image"
+                         class="food-card-image enhanced-image"
                          th:alt="${food.name}">
                     <div th:unless="${food.imagePath != null}" 
-                         class="food-card-image flex items-center justify-center"
-                         style="background: linear-gradient(135deg, var(--secondary-100) 0%, var(--secondary-200) 100%);">
-                        <i class="bi bi-image" style="font-size: 3rem; color: var(--secondary-400);"></i>
+                         class="food-card-image flex items-center justify-center enhanced-placeholder"
+                         style="background: linear-gradient(135deg, #e5e7eb 0%, #d1d5db 100%);">
+                        <i class="bi bi-image" style="font-size: 3.5rem; color: #9ca3af;"></i>
                     </div>
                     
                     <!-- 編輯提示 -->
-                    <div class="edit-overlay">
+                    <div class="edit-overlay enhanced-overlay">
                         <div class="edit-hint">
                             <i class="bi bi-pencil-square"></i>
                             <span>點擊編輯</span>
@@ -191,7 +197,7 @@
                 </div>
 
                 <!-- 食物資訊 -->
-                <div class="food-card-content">
+                <div class="food-card-content enhanced-content">
                     <h3 class="food-card-title">
                         <span class="food-name" th:text="${food.name}">食物名稱</span>
                         <span th:if="${food.quantity != null and food.quantity > 0 and food.unit != null and food.unit != ''}" 
@@ -212,8 +218,8 @@
                                 <i class="bi bi-percent text-primary-500"></i>
                                 <span>系數</span>
                             </div>
-                            <div class="carb-info-value primary">
-                                <span th:text="${food.coefficient}"></span>
+                            <div class="carb-info-value">
+                                <span class="coefficient-green" th:text="${food.coefficient}"></span>
                                 <small>比例值</small>
                             </div>
                         </div>
@@ -224,8 +230,8 @@
                                 <i class="bi bi-graph-up text-success-500"></i>
                                 <span>碳水化合物(克)</span>
                             </div>
-                            <div class="carb-info-value success">
-                                <span th:text="${food.carbGrams % 1 == 0 ? #numbers.formatInteger(food.carbGrams, 0) : #numbers.formatDecimal(food.carbGrams, 1, 'DEFAULT', 1, 'DEFAULT')}"></span>
+                            <div class="carb-info-value">
+                                <span class="carb-orange" th:text="${food.carbGrams % 1 == 0 ? #numbers.formatInteger(food.carbGrams, 0) : #numbers.formatDecimal(food.carbGrams, 1, 'DEFAULT', 1, 'DEFAULT')}"></span>
                                 <small>此份食物</small>
                             </div>
                         </div>
@@ -537,6 +543,131 @@
     </script>
 
     <style>
+        /* 增強版食物卡片樣式 */
+        .enhanced-card {
+            position: relative;
+            border: 2px solid transparent;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15), 0 2px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            overflow: visible;
+        }
+        
+        .enhanced-card:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 16px 32px rgba(0, 0, 0, 0.25), 0 4px 12px rgba(0, 0, 0, 0.15);
+            border-color: var(--primary-300);
+        }
+        
+        .favorite-badge {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            z-index: 20;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+                box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+            }
+            50% {
+                transform: scale(1.05);
+                box-shadow: 0 6px 16px rgba(245, 158, 11, 0.6);
+            }
+        }
+        
+        .food-card-image-wrapper {
+            position: relative;
+            border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+            overflow: hidden;
+        }
+        
+        .enhanced-image {
+            transition: transform 0.4s ease;
+        }
+        
+        .enhanced-card:hover .enhanced-image {
+            transform: scale(1.1);
+        }
+        
+        .enhanced-placeholder {
+            transition: all 0.4s ease;
+        }
+        
+        .enhanced-card:hover .enhanced-placeholder {
+            background: linear-gradient(135deg, #d1d5db 0%, #9ca3af 100%) !important;
+        }
+        
+        .enhanced-overlay {
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+        }
+        
+        .enhanced-content {
+            padding: var(--space-5);
+            background: linear-gradient(to bottom, white 0%, #fafafa 100%);
+        }
+        
+        .food-card-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: var(--space-4);
+            color: #1a202c;
+        }
+        
+        .food-name {
+            background: linear-gradient(135deg, var(--primary-600) 0%, var(--primary-800) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .carb-info-item {
+            background: white;
+            border-radius: var(--radius-lg);
+            padding: var(--space-3);
+            border: 2px solid var(--secondary-100);
+            transition: all 0.2s ease;
+        }
+        
+        .enhanced-card:hover .carb-info-item {
+            border-color: var(--primary-200);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+        }
+        
+        .carb-info-value {
+            font-size: 1.5rem;
+            font-weight: 800;
+        }
+        
+        .carb-info-value.primary {
+            color: #f97316;
+        }
+        
+        .carb-info-value.success {
+            color: #fb923c;
+        }
+        
+        .edit-hint {
+            transform: scale(0.9);
+            transition: all 0.3s ease;
+        }
+        
+        .enhanced-card:hover .edit-hint {
+            transform: scale(1);
+        }
+        
         /* 模態框樣式 */
         .modal {
             position: fixed;

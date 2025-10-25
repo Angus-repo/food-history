@@ -17,7 +17,7 @@
                 <span th:text="${food.id == null ? '新增食物' : '編輯食物'}">新增/編輯食物</span>
             </h1>
             <div class="flex gap-3">
-                <a href="/foods" class="btn btn-secondary">
+                <a href="/foods" class="btn btn-primary">
                     <i class="bi bi-arrow-left"></i>
                     返回列表
                 </a>
@@ -255,7 +255,7 @@
                                     <i class="bi bi-save"></i>
                                     <span th:text="${food.id == null ? '新增食物' : '更新食物'}">儲存</span>
                                 </button>
-                                <a href="/foods" class="btn btn-secondary btn-lg">
+                                <a href="/foods" class="btn btn-cancel btn-lg">
                                     <i class="bi bi-x-lg"></i>
                                     取消
                                 </a>

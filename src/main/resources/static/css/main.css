@@ -1,3 +1,18 @@
+/* 橘色字體：碳水化合物(克) */
+.carb-orange {
+    color: #fb923c;
+    font-size: 2.8rem !important;
+    font-weight: 900;
+    letter-spacing: -0.01em;
+}
+
+/* 綠色字體：系數 */
+.coefficient-green {
+    color: #22c55e;
+    font-size: 2.8rem !important;
+    font-weight: 900;
+    letter-spacing: -0.01em;
+}
 /* 食物歷史應用程式 - 響應式設計系統 */
 
 /* ===== 設計系統變數 ===== */
@@ -229,13 +244,13 @@ select {
 }
 
 .btn-primary {
-    background: var(--primary-500);
+    background: var(--primary-700);
     color: white;
     box-shadow: var(--shadow-sm);
 }
 
 .btn-primary:hover:not(:disabled) {
-    background: var(--primary-600);
+    background: var(--primary-800);
     box-shadow: var(--shadow-md);
     transform: translateY(-1px);
 }
@@ -263,16 +278,37 @@ select {
     transform: translateY(-1px);
 }
 
-.btn-danger {
-    background: var(--danger-500);
-    color: white;
-    box-shadow: var(--shadow-sm);
-}
 
+/* 更淡的刪除按鈕顏色 */
+.btn-danger {
+    background: #fde8e8;
+    color: var(--danger-600);
+    border: 1.5px solid #fca5a5;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s;
+}
 .btn-danger:hover:not(:disabled) {
-    background: var(--danger-600);
+    background: #fecaca;
+    color: #b91c1c;
+    border-color: #ef4444;
     box-shadow: var(--shadow-md);
     transform: translateY(-1px);
+}
+
+/* 取消鈕樣式，與最愛鈕一致 */
+.btn-cancel {
+    background: #fff;
+    color: #64748b;
+    border: 1.5px solid #e2e8f0;
+    border-radius: 8px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+    font-weight: 500;
+    transition: all 0.2s;
+}
+.btn-cancel:hover {
+    color: #374151;
+    border-color: #9ca3af;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
 }
 
 /* ===== 卡片系統 ===== */
@@ -341,6 +377,18 @@ select {
 
 .form-control::placeholder {
     color: var(--secondary-400);
+}
+
+/* 碳水化合物輸入框樣式 */
+.carb-input {
+    font-size: var(--font-size-xl);
+    font-weight: 700;
+    color: #fb923c !important;
+}
+
+/* 系數輸入框樣式 */
+#coefficient.carb-input {
+    color: #22c55e !important;
 }
 
 /* ===== 頁面標題 ===== */
