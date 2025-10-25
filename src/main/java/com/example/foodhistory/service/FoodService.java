@@ -40,7 +40,11 @@ public class FoodService {
     }
     
     public void deleteFood(Long id) {
-        foodRepository.deleteById(id);
+        // 先檢查是否存在，避免刪除不存在的食物時拋出異常
+        if (foodRepository.existsById(id)) {
+            foodRepository.deleteById(id);
+        }
+        // 如果不存在也不報錯，符合冪等性原則
     }
     
     public Food toggleFavorite(Long id) {

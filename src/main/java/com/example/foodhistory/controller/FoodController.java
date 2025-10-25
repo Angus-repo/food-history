@@ -109,12 +109,40 @@ public class FoodController {
                       @RequestParam(value = "returnKeyword", required = false) String returnKeyword,
                       @RequestParam(value = "returnPage", required = false) Integer returnPage,
                       @RequestParam(value = "returnFoodId", required = false) Long returnFoodId,
-                      RedirectAttributes redirectAttributes) {
+                      RedirectAttributes redirectAttributes,
+                      Model model) {
+        
+        // 手動驗證必填欄位
+        if (food.getName() == null || food.getName().trim().isEmpty()) {
+            model.addAttribute("error", "食物名稱為必填欄位");
+            model.addAttribute("food", food);
+            model.addAttribute("hasImage", false);
+            model.addAttribute("returnKeyword", returnKeyword);
+            model.addAttribute("returnPage", returnPage);
+            model.addAttribute("returnFoodId", returnFoodId);
+            return "food/form";
+        }
+        
+        if (food.getCarbGrams() == null) {
+            model.addAttribute("error", "碳水化合物含量為必填欄位");
+            model.addAttribute("food", food);
+            model.addAttribute("hasImage", false);
+            model.addAttribute("returnKeyword", returnKeyword);
+            model.addAttribute("returnPage", returnPage);
+            model.addAttribute("returnFoodId", returnFoodId);
+            return "food/form";
+        }
+        
         try {
             // 如果是編輯操作，先取得原有資料
             Food existingFood = null;
             if (food.getId() != null) {
                 existingFood = foodService.getFoodById(food.getId());
+                // 如果沒有移除圖片，保留原有的圖片資訊
+                if (!Boolean.TRUE.equals(removeImage) && existingFood != null) {
+                    food.setImagePath(existingFood.getImagePath());
+                    food.setImageContentType(existingFood.getImageContentType());
+                }
             }
             
             // 先儲存食物資料以取得 ID
