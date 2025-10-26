@@ -346,12 +346,30 @@ public class UISearchSteps {
 
     @那麼("我應該看到食物 {string} 在列表中")
     public void 我應該看到食物在列表中(String foodName) {
-        WebElement foodElement = wait.until(
-            ExpectedConditions.presenceOfElementLocated(
-                By.xpath("//*[contains(text(), '" + foodName + "')]")
-            )
-        );
-        assertTrue(foodElement.isDisplayed());
+        try {
+            // 更精確地尋找食物卡片中的標題 (避免匹配到其他隱藏或非卡片元素的文字)
+            WebElement foodCardHeader = wait.until(
+                ExpectedConditions.presenceOfElementLocated(
+                    By.xpath("//div[contains(@class, 'food-card')]//h3[contains(., '" + foodName + "')]")
+                )
+            );
+            // 確保父卡片是可見的
+            WebElement foodCard = foodCardHeader.findElement(By.xpath("ancestor::div[contains(@class, 'food-card')]"));
+            assertTrue(foodCard.isDisplayed(), "食物卡片應該可見: " + foodName);
+        } catch (TimeoutException | NoSuchElementException e) {
+            // 若未找到或不可見，印出前幾個卡片的 HTML 以利偵錯
+            try {
+                List<WebElement> cards = driver.findElements(By.className("food-card"));
+                System.out.println("找不到食物 '" + foodName + "'，目前頁面 food-card 數量: " + cards.size());
+                for (int i = 0; i < Math.min(cards.size(), 3); i++) {
+                    String html = cards.get(i).getAttribute("outerHTML");
+                    System.out.println("卡片 " + i + " (前500字元): " + html.substring(0, Math.min(500, html.length())));
+                }
+            } catch (Exception ex) {
+                System.out.println("嘗試印出 food-card 時發生錯誤: " + ex.getMessage());
+            }
+            fail("未在列表中找到食物: " + foodName);
+        }
     }
 
     @那麼("搜尋框應該是空的")
