@@ -362,8 +362,28 @@
         });
         
         // 圖片預覽功能
+        // 圖片預覽功能（含驗證）
         function previewImage(input) {
             if (input.files && input.files[0]) {
+                const file = input.files[0];
+                const maxSize = 20 * 1024 * 1024; // 20MB
+                const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+                
+                // 檢查檔案大小
+                if (file.size > maxSize) {
+                    showValidationError('圖片檔案太大，請選擇小於 20MB 的圖片');
+                    input.value = '';
+                    return;
+                }
+                
+                // 檢查檔案類型
+                if (!allowedTypes.includes(file.type)) {
+                    showValidationError('不支援的圖片格式，請選擇 JPEG、PNG、GIF 或 WebP 格式');
+                    input.value = '';
+                    return;
+                }
+                
+                // 驗證通過,開始預覽
                 const reader = new FileReader();
                 const uploadPlaceholder = document.getElementById('uploadPlaceholder');
                 const progressBar = document.getElementById('uploadProgress');
@@ -419,7 +439,7 @@
                     }, 500);
                 };
                 
-                reader.readAsDataURL(input.files[0]);
+                reader.readAsDataURL(file);
             }
         }
         

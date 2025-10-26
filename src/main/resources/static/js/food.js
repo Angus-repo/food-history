@@ -85,8 +85,16 @@ function initializeImageUpload() {
     const imageInput = document.getElementById('imageFile');
     if (imageInput) {
         // 圖片格式驗證
-        imageInput.addEventListener('change', function() {
-            validateImageFile(this);
+        imageInput.addEventListener('change', function(e) {
+            // 先驗證檔案
+            const isValid = validateImageFile(this);
+            // 如果驗證失敗,不執行預覽
+            if (!isValid) {
+                e.preventDefault();
+                return;
+            }
+            // 驗證成功,執行預覽
+            previewImage(this);
         });
     }
 }
@@ -94,12 +102,12 @@ function initializeImageUpload() {
 function validateImageFile(input) {
     if (input.files && input.files[0]) {
         const file = input.files[0];
-        const maxSize = 5 * 1024 * 1024; // 5MB
+        const maxSize = 20 * 1024 * 1024; // 20MB
         const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
         
         // 檢查檔案大小
         if (file.size > maxSize) {
-            showNotification('圖片檔案太大，請選擇小於 5MB 的圖片', 'error');
+            showNotification('圖片檔案太大，請選擇小於 20MB 的圖片', 'error');
             input.value = '';
             return false;
         }
@@ -111,10 +119,9 @@ function validateImageFile(input) {
             return false;
         }
         
-        // 預覽圖片
-        previewImage(input);
         return true;
     }
+    return false;
 }
 
 // 改進的圖片預覽功能
@@ -139,7 +146,7 @@ function previewImage(input) {
         };
         
         reader.onerror = function() {
-            showNotification('圖片載入失敗，請重試', 'error');
+            showNotification('圖片載入失敗,請重試', 'error');
             hideImageLoadingState();
         };
         
@@ -302,7 +309,9 @@ function hideLoadingState() {
 
 function showNotification(message, type = 'info') {
     const notification = document.createElement('div');
-    notification.className = `alert-${type === 'error' ? 'danger' : type}-modern alert-modern`;
+    // 使用統一的 class 名稱 alert-danger, alert-success, alert-info
+    const alertType = type === 'error' ? 'danger' : type;
+    notification.className = `alert alert-${alertType} image-upload-notification`;
     notification.style.cssText = `
         position: fixed;
         top: 20px;
@@ -310,6 +319,12 @@ function showNotification(message, type = 'info') {
         z-index: 10000;
         min-width: 300px;
         animation: slideInRight 0.3s ease;
+        padding: 1rem 1.5rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        border-radius: 0.5rem;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     `;
     
     const icon = type === 'success' ? 'check-circle' : 
@@ -317,7 +332,7 @@ function showNotification(message, type = 'info') {
     
     notification.innerHTML = `
         <i class="bi bi-${icon} me-2"></i>
-        ${message}
+        <span>${message}</span>
         <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
     `;
     

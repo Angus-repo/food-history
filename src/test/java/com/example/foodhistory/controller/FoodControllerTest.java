@@ -99,7 +99,8 @@ public class FoodControllerTest {
         when(foodService.getFoodById(1L)).thenReturn(food);
         when(foodService.saveFood(any(Food.class))).thenReturn(savedFood);
         when(imageFile.isEmpty()).thenReturn(true);
-        String viewName = foodController.save(food, imageFile, false, null, null, null, redirectAttributes);
+        Model model = mock(Model.class);
+        String viewName = foodController.save(food, imageFile, false, null, null, null, redirectAttributes, model);
         // URL 會包含 #food-1 錨點
         assertEquals("redirect:/foods#food-1", viewName);
         verify(foodService).saveFood(any(Food.class));

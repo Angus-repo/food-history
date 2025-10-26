@@ -32,9 +32,11 @@ import org.springframework.security.web.authentication.rememberme.PersistentToke
 import org.springframework.security.web.authentication.rememberme.PersistentTokenRepository;
 import org.springframework.security.web.authentication.rememberme.JdbcTokenRepositoryImpl;
 import javax.sql.DataSource;
+import org.springframework.context.annotation.Profile;
 
 @Configuration
 @EnableWebSecurity
+@Profile("!test")  // Do not load this config in test profile
 public class SecurityConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
