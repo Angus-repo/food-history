@@ -16,8 +16,10 @@
         <header class="page-header">
             <div class="flex items-center justify-between" style="width: 100%;">
                 <h1 class="page-title">
-                    <i class="bi bi-journal-bookmark"></i>
-                    我的食物歷史
+                    <a href="/foods" class="title-link" style="color: inherit; display: flex; align-items: center; gap: var(--space-2);">
+                        <i class="bi bi-journal-bookmark"></i>
+                        我的食物歷史
+                    </a>
                 </h1>
                 <form method="post" action="/logout" style="display: inline;">
                     <button type="submit" class="btn btn-outline-secondary btn-sm">
@@ -1230,6 +1232,19 @@
         
         .text-warning-500 {
             color: var(--warning-500);
+        }
+        
+        /* 標題連結樣式 */
+        .title-link {
+            text-decoration: underline;
+            text-decoration-color: var(--primary-400);
+            text-underline-offset: 4px;
+            transition: all 0.2s ease;
+        }
+        
+        .title-link:hover {
+            text-decoration-color: var(--primary-600);
+            color: var(--primary-600) !important;
         }
     </style>
 </body>

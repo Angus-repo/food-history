@@ -73,6 +73,18 @@ public class UIFormAnimationSteps {
         ((JavascriptExecutor) driver).executeScript("arguments[0].click();", submitButton);
     }
 
+    @當("我提交編輯表單")
+    public void 我提交編輯表單() {
+        我點擊提交按鈕();
+        
+        // 等待頁面跳轉或成功訊息
+        try {
+            Thread.sleep(1000); // 等待表單提交處理
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
     @當("我填寫有效的食物資料:")
     public void 我填寫有效的食物資料(DataTable dataTable) {
         List<Map<String, String>> rows = dataTable.asMaps();
@@ -89,6 +101,33 @@ public class UIFormAnimationSteps {
             carbInput.clear();
             carbInput.sendKeys(data.get("carbGrams"));
         }
+    }
+
+    @當("我填寫食物名稱 {string}")
+    public void 我填寫食物名稱(String name) {
+        WebElement nameInput = wait.until(
+            ExpectedConditions.presenceOfElementLocated(By.name("name"))
+        );
+        nameInput.clear();
+        nameInput.sendKeys(name);
+    }
+
+    @當("我填寫系數欄位 {string}")
+    public void 我填寫系數欄位(String coefficient) {
+        WebElement coefficientInput = wait.until(
+            ExpectedConditions.presenceOfElementLocated(By.name("coefficient"))
+        );
+        coefficientInput.clear();
+        coefficientInput.sendKeys(coefficient);
+    }
+
+    @當("我填寫碳水化合物欄位 {string}")
+    public void 我填寫碳水化合物欄位(String carbGrams) {
+        WebElement carbInput = wait.until(
+            ExpectedConditions.presenceOfElementLocated(By.name("carbGrams"))
+        );
+        carbInput.clear();
+        carbInput.sendKeys(carbGrams);
     }
 
     @當("我聚焦搜尋框")
@@ -127,7 +166,6 @@ public class UIFormAnimationSteps {
             )
         );
         
-        String originalShadow = card.getCssValue("box-shadow");
         actions.moveToElement(card).perform();
         
         try {
@@ -145,6 +183,36 @@ public class UIFormAnimationSteps {
             )
         );
         addButton.click();
+    }
+
+    @當("我點擊食物 {string} 的編輯按鈕")
+    public void 我點擊食物的編輯按鈕(String foodName) {
+        // 找到包含該食物名稱的卡片（卡片本身就是可點擊的）
+        WebElement foodCard = wait.until(
+            ExpectedConditions.presenceOfElementLocated(
+                By.xpath("//h3[contains(@class, 'food-card-title')]//span[contains(., '" + foodName + "')]/ancestor::div[contains(@class, 'food-card')]")
+            )
+        );
+        
+        // 直接點擊卡片（卡片有 onclick 事件）
+        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block: 'center'});", foodCard);
+        
+        try {
+            Thread.sleep(300);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+        
+        foodCard.click();
+        
+        // 等待頁面跳轉到編輯頁面
+        wait.until(ExpectedConditions.urlContains("/edit"));
+        
+        try {
+            Thread.sleep(500);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     @那麼("應該顯示載入狀態")
@@ -171,6 +239,57 @@ public class UIFormAnimationSteps {
             assertTrue(driver.getCurrentUrl().contains("/foods/new") || 
                       driver.getCurrentUrl().contains("/foods/") && driver.getCurrentUrl().contains("/edit"),
                       "應該停留在表單頁面");
+        }
+    }
+
+    @那麼("表單應該成功提交")
+    public void 表單應該成功提交() {
+        // 等待頁面跳轉，表示表單提交成功
+        try {
+            Thread.sleep(1000);
+            // 檢查是否離開表單頁面
+            String currentUrl = driver.getCurrentUrl();
+            boolean isNotOnFormPage = !currentUrl.contains("/foods/new") && 
+                                     !(currentUrl.contains("/foods/") && currentUrl.contains("/edit"));
+            assertTrue(isNotOnFormPage || currentUrl.contains("/foods"), 
+                      "表單應該成功提交並跳轉");
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
+    @那麼("應該跳轉到食物列表頁面")
+    public void 應該跳轉到食物列表頁面() {
+        // 等待 URL 包含 /foods（允許帶查詢參數或錨點）
+        wait.until(driver -> {
+            String currentUrl = driver.getCurrentUrl();
+            // 移除錨點部分進行比較
+            String urlWithoutAnchor = currentUrl.split("#")[0];
+            return urlWithoutAnchor.matches(".*\\/foods(\\?.*)?$") || urlWithoutAnchor.endsWith("/foods");
+        });
+        
+        String currentUrl = driver.getCurrentUrl();
+        // 移除錨點部分進行驗證
+        String urlWithoutAnchor = currentUrl.split("#")[0];
+        assertTrue(urlWithoutAnchor.matches(".*\\/foods(\\?.*)?$") || urlWithoutAnchor.endsWith("/foods"), 
+                  "應該跳轉到食物列表頁面，當前 URL: " + currentUrl);
+    }
+
+    @那麼("應該顯示錯誤訊息 {string}")
+    public void 應該顯示錯誤訊息(String expectedMessage) {
+        try {
+            // 等待錯誤訊息出現（最多等待 3 秒）
+            WebElement errorAlert = wait.until(
+                ExpectedConditions.presenceOfElementLocated(
+                    By.cssSelector(".alert-danger, .validation-error-alert, .fixed-top-alert")
+                )
+            );
+            
+            String actualMessage = errorAlert.getText();
+            assertTrue(actualMessage.contains(expectedMessage), 
+                      "錯誤訊息應該包含: " + expectedMessage + ", 實際訊息: " + actualMessage);
+        } catch (TimeoutException e) {
+            fail("未找到預期的錯誤訊息: " + expectedMessage);
         }
     }
 

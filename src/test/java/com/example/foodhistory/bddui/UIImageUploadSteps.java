@@ -75,6 +75,24 @@ public class UIImageUploadSteps {
         uploadImage(tempImageFile);
     }
 
+    @當("我上傳一個有效的 PNG 圖片到編輯表單")
+    public void 我上傳一個有效的PNG圖片到編輯表單() throws IOException {
+        tempImageFile = createTestImage("edit-test.png", "image/png", 1024 * 100); // 100KB
+        
+        // 等待圖片上傳輸入框出現
+        WebElement fileInput = wait.until(
+            ExpectedConditions.presenceOfElementLocated(By.id("imageFile"))
+        );
+        
+        fileInput.sendKeys(tempImageFile.getAbsolutePath());
+        
+        try {
+            Thread.sleep(500); // 等待檔案處理
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+    }
+
     @當("我點擊移除圖片按鈕")
     public void 我點擊移除圖片按鈕() {
         WebElement removeButton = wait.until(
@@ -82,8 +100,22 @@ public class UIImageUploadSteps {
         );
         removeButton.click();
         
+        // 等待 JavaScript 執行完成，確保 removeImageFlag 被設置為 true
+        wait.until(driver -> {
+            try {
+                WebElement removeFlag = driver.findElement(By.id("removeImageFlag"));
+                String value = removeFlag.getAttribute("value");
+                System.out.println("removeImageFlag 當前值: " + value);
+                return "true".equals(value);
+            } catch (Exception e) {
+                return false;
+            }
+        });
+        
+        System.out.println("✅ 移除圖片按鈕已點擊，removeImageFlag 已設置為 true");
+        
         try {
-            Thread.sleep(300); // 等待移除動畫
+            Thread.sleep(300); // 額外等待移除動畫完成
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

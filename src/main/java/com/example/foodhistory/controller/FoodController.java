@@ -123,8 +123,12 @@ public class FoodController {
             return "food/form";
         }
         
-        if (food.getCarbGrams() == null) {
-            model.addAttribute("error", "碳水化合物含量為必填欄位");
+        // 驗證至少填寫系數或碳水化合物其中一項
+        boolean hasCoefficient = food.getCoefficient() != null && food.getCoefficient() != 0.0;
+        boolean hasCarbGrams = food.getCarbGrams() != null && food.getCarbGrams() != 0.0;
+        
+        if (!hasCoefficient && !hasCarbGrams) {
+            model.addAttribute("error", "請至少填寫系數或碳水化合物其中一項");
             model.addAttribute("food", food);
             model.addAttribute("hasImage", false);
             model.addAttribute("returnKeyword", returnKeyword);

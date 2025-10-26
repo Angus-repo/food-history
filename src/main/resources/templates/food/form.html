@@ -75,7 +75,6 @@
                                    accept="image/*" 
                                    onchange="previewImage(this)"
                                    form="foodForm">
-                            <input type="hidden" id="removeImageFlag" name="removeImage" value="false">
                             
                             <div id="uploadPlaceholder" th:style="${hasImage ? 'display: none;' : ''}">
                                 <i class="bi bi-cloud-upload upload-icon"></i>
@@ -105,6 +104,7 @@
                     <input type="hidden" id="returnKeyword" name="returnKeyword" th:value="${returnKeyword}" />
                     <input type="hidden" id="returnPage" name="returnPage" th:value="${returnPage}" />
                     <input type="hidden" id="returnFoodId" name="returnFoodId" th:value="${returnFoodId}" />
+                    <input type="hidden" id="removeImageFlag" name="removeImage" value="false">
                     
                     <!-- 基本資訊 -->
                     <div class="card slide-in" style="animation-delay: 0.1s;">

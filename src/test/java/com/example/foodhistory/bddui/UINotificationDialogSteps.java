@@ -183,6 +183,11 @@ public class UINotificationDialogSteps {
         assertTrue(notification.isDisplayed(), "應該顯示成功通知: " + message);
     }
 
+    @那麼("我應該看到成功訊息 {string}")
+    public void 我應該看到成功訊息(String message) {
+        應該顯示成功通知(message);
+    }
+
     @那麼("通知應該在 5 秒後自動消失")
     public void 通知應該在5秒後自動消失() {
         try {

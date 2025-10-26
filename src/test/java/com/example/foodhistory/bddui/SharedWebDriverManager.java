@@ -66,7 +66,19 @@ public class SharedWebDriverManager {
             options.addArguments("--lang=zh-TW");
             options.addArguments("--remote-allow-origins=*");
             options.addArguments("--disable-blink-features=AutomationControlled");
-            options.setExperimentalOption("excludeSwitches", new String[]{"enable-automation"});
+            options.addArguments("--disable-extensions");
+            options.addArguments("--disable-software-rasterizer");
+            options.addArguments("--disable-background-timer-throttling");
+            options.addArguments("--disable-backgrounding-occluded-windows");
+            options.addArguments("--disable-renderer-backgrounding");
+            options.addArguments("--disable-features=TranslateUI,VizDisplayCompositor");
+            options.addArguments("--disable-ipc-flooding-protection");
+            options.addArguments("--force-device-scale-factor=1");
+            options.addArguments("--disable-hang-monitor");
+            options.addArguments("--disable-prompt-on-repost");
+            options.addArguments("--metrics-recording-only");
+            options.addArguments("--enable-automation");
+            options.setExperimentalOption("excludeSwitches", new String[]{"enable-logging"});
             
             driver = new ChromeDriver(options);
             driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(5));
