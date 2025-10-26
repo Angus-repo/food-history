@@ -59,12 +59,22 @@ public class UINotificationDialogSteps {
     @當("我在確認對話框中點擊確認")
     public void 我在確認對話框中點擊確認() {
         try {
-            // 等待瀏覽器原生 alert/confirm 對話框出現並接受它
-            Alert alert = wait.until(ExpectedConditions.alertIsPresent());
-            System.out.println("確認對話框文字: " + alert.getText());
-            alert.accept(); // 點擊「確定」
-            
-            Thread.sleep(1000); // 等待刪除操作和頁面跳轉
+            // 等待 modal 內容可見
+            wait.until(
+                ExpectedConditions.visibilityOfElementLocated(
+                    By.cssSelector("#deleteModal .modal-content")
+                )
+            );
+
+            // 找到模態框內的「刪除」按鈕（list.html 使用 btn btn-danger 並含 '刪除' 文字）
+            WebElement confirmButton = driver.findElement(
+                By.xpath("//div[@id='deleteModal']//button[contains(., '刪除')]")
+            );
+
+            // 使用 JavaScript click 以避免 overlay 或其他原因造成的不可點擊問題
+            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", confirmButton);
+
+            Thread.sleep(1000); // 等待刪除操作和頁面變更
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
