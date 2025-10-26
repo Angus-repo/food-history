@@ -10,6 +10,24 @@
 	],
 	"tasks": [
 		{
+			"label": "Run tests with JaCoCo",
+			"type": "shell",
+			"command": "mvn",
+			"args": [
+				"clean",
+				"verify"
+			],
+			"group": {
+				"kind": "test",
+				"isDefault": false
+			},
+			"presentation": {
+				"reveal": "always",
+				"panel": "shared"
+			},
+			"problemMatcher": []
+		},
+		{
 			"label": "Run Single UI Test",
 			"type": "shell",
 			"command": "mvn",

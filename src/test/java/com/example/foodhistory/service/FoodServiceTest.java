@@ -60,6 +60,7 @@ public class FoodServiceTest {
 
     @Test
     public void testDeleteFood() {
+        when(foodRepository.existsById(1L)).thenReturn(true);
         doNothing().when(foodRepository).deleteById(1L);
         foodService.deleteFood(1L);
         verify(foodRepository).deleteById(1L);

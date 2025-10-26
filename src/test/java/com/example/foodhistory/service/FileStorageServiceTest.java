@@ -12,7 +12,7 @@ import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-@SpringBootTest
+@SpringBootTest(classes = com.example.foodhistory.service.FileStorageService.class)
 @TestPropertySource(properties = {
     "app.image.storage.path=target/test-images"
 })

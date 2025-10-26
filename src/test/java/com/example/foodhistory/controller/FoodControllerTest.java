@@ -94,6 +94,9 @@ public class FoodControllerTest {
     public void testSave() throws Exception {
         Food food = new Food();
         food.setId(1L);
+        // 必要欄位以通過控制器的手動驗證
+        food.setName("測試食物");
+        food.setCarbGrams(10.0);
         Food savedFood = new Food();
         savedFood.setId(1L);
         when(foodService.getFoodById(1L)).thenReturn(food);
