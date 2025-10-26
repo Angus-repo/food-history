@@ -229,16 +229,25 @@ public class UIFormAnimationSteps {
     @那麼("表單應該顯示驗證錯誤")
     public void 表單應該顯示驗證錯誤() {
         try {
-            // 檢查是否有錯誤訊息或回到表單頁面
-            WebElement errorMessage = driver.findElement(
-                By.cssSelector(".alert-danger, .error-message, .invalid-feedback")
-            );
-            assertTrue(errorMessage.isDisplayed(), "應該顯示驗證錯誤");
-        } catch (NoSuchElementException e) {
-            // 或者檢查是否還在表單頁面（沒有重定向）
-            assertTrue(driver.getCurrentUrl().contains("/foods/new") || 
-                      driver.getCurrentUrl().contains("/foods/") && driver.getCurrentUrl().contains("/edit"),
-                      "應該停留在表單頁面");
+            Thread.sleep(500);
+            // 檢查是否還在表單頁面(沒有重定向)
+            String currentUrl = driver.getCurrentUrl();
+            boolean onFormPage = currentUrl.contains("/foods/new") || 
+                               (currentUrl.contains("/foods/") && currentUrl.contains("/edit"));
+            assertTrue(onFormPage, "應該停留在表單頁面,實際 URL: " + currentUrl);
+            
+            // 檢查是否有錯誤訊息或 HTML5 驗證
+            try {
+                WebElement errorMessage = driver.findElement(
+                    By.cssSelector(".alert-danger, .error-message, .invalid-feedback, .text-danger")
+                );
+                assertTrue(errorMessage.isDisplayed(), "應該顯示驗證錯誤");
+            } catch (NoSuchElementException e) {
+                // 沒有顯示錯誤訊息但也沒有跳轉,表示可能有 HTML5 驗證或後端拒絕
+                System.out.println("表單停留在原頁面,未跳轉");
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 

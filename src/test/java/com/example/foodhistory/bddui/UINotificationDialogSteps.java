@@ -58,15 +58,13 @@ public class UINotificationDialogSteps {
 
     @當("我在確認對話框中點擊確認")
     public void 我在確認對話框中點擊確認() {
-        WebElement confirmButton = wait.until(
-            ExpectedConditions.presenceOfElementLocated(
-                By.xpath("//button[contains(@class, 'btn-danger') and contains(., '刪除')]")
-            )
-        );
-        confirmButton.click();
-        
         try {
-            Thread.sleep(500); // 等待刪除操作
+            // 等待瀏覽器原生 alert/confirm 對話框出現並接受它
+            Alert alert = wait.until(ExpectedConditions.alertIsPresent());
+            System.out.println("確認對話框文字: " + alert.getText());
+            alert.accept(); // 點擊「確定」
+            
+            Thread.sleep(1000); // 等待刪除操作和頁面跳轉
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }

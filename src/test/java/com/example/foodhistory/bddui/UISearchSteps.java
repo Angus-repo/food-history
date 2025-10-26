@@ -65,28 +65,44 @@ public class UISearchSteps {
     public void 資料庫中有以下食物(DataTable dataTable) {
         // 清空現有資料
         foodRepository.deleteAll();
+        foodRepository.flush();
         
         // 從 DataTable 讀取並創建食物資料
         List<Map<String, String>> rows = dataTable.asMaps();
         for (Map<String, String> row : rows) {
             Food food = new Food();
-            food.setId(Long.parseLong(row.get("id")));
             food.setName(row.get("name"));
             food.setCarbGrams(Double.parseDouble(row.get("carbGrams")));
-            foodRepository.save(food);
+            
+            // 儲存並取得自動生成的ID
+            Food savedFood = foodRepository.saveAndFlush(food);
+            
+            // 將期望的ID與實際ID的映射儲存起來
+            String expectedIdStr = row.get("id");
+            if (expectedIdStr != null && !expectedIdStr.isEmpty()) {
+                long expectedId = Long.parseLong(expectedIdStr);
+                SharedWebDriverManager.mapFoodId(expectedId, savedFood.getId());
+                System.out.println("映射 ID: 期望=" + expectedId + " -> 實際=" + savedFood.getId() + ", Name=" + savedFood.getName());
+            } else {
+                System.out.println("創建食物: ID=" + savedFood.getId() + ", Name=" + savedFood.getName());
+            }
         }
+        
+        // 重新載入所有食物並顯示
+        List<Food> allFoods = foodRepository.findAll();
+        System.out.println("資料庫中總共有 " + allFoods.size() + " 個食物");
     }
 
     @假如("資料庫中有一個沒有圖片的食物:")
     public void 資料庫中有一個沒有圖片的食物(DataTable dataTable) {
         // 清空現有資料
         foodRepository.deleteAll();
+        foodRepository.flush();
         
         // 從 DataTable 讀取並創建食物資料
         List<Map<String, String>> rows = dataTable.asMaps();
         for (Map<String, String> row : rows) {
             Food food = new Food();
-            food.setId(Long.parseLong(row.get("id")));
             food.setName(row.get("name"));
             food.setCarbGrams(Double.parseDouble(row.get("carbGrams")));
             // imagePath 為空或 null
@@ -94,7 +110,8 @@ public class UISearchSteps {
             if (imagePath != null && !imagePath.trim().isEmpty()) {
                 food.setImagePath(imagePath);
             }
-            foodRepository.save(food);
+            Food savedFood = foodRepository.saveAndFlush(food);
+            System.out.println("創建無圖片食物: ID=" + savedFood.getId() + ", Name=" + savedFood.getName());
         }
     }
 
@@ -102,12 +119,12 @@ public class UISearchSteps {
     public void 資料庫中有一個帶圖片的食物(DataTable dataTable) {
         // 清空現有資料
         foodRepository.deleteAll();
+        foodRepository.flush();
         
         // 從 DataTable 讀取並創建食物資料
         List<Map<String, String>> rows = dataTable.asMaps();
         for (Map<String, String> row : rows) {
             Food food = new Food();
-            food.setId(Long.parseLong(row.get("id")));
             food.setName(row.get("name"));
             food.setCarbGrams(Double.parseDouble(row.get("carbGrams")));
             
@@ -133,8 +150,8 @@ public class UISearchSteps {
                 e.printStackTrace();
             }
             
-            foodRepository.save(food);
-            System.out.println("創建帶圖片的食物: ID=" + food.getId() + ", Name=" + food.getName() + ", ImagePath=" + food.getImagePath());
+            Food savedFood = foodRepository.saveAndFlush(food);
+            System.out.println("創建帶圖片的食物: ID=" + savedFood.getId() + ", Name=" + savedFood.getName() + ", ImagePath=" + savedFood.getImagePath());
         }
     }
     

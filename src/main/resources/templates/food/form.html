@@ -694,7 +694,25 @@
                 fetch(`/foods/${id}`, {
                     method: 'DELETE'
                 }).then(() => {
-                    window.location.href = '/foods';
+                    // 刪除成功後，導航回列表並捲動到下一筆（原本的上一筆）
+                    let url = '/foods?';
+                    const params = new URLSearchParams();
+                    
+                    // 保留搜尋關鍵字
+                    if (returnParams.keyword) {
+                        params.append('keyword', returnParams.keyword);
+                    }
+                    
+                    // 保留頁碼
+                    if (returnParams.page) {
+                        params.append('page', returnParams.page);
+                    }
+                    
+                    // 刪除後，捲動到下一筆（ID + 1，因為列表是降序排列）
+                    const nextFoodId = parseInt(id) + 1;
+                    const anchor = '#food-' + nextFoodId;
+                    
+                    window.location.href = url + params.toString() + anchor;
                 }).catch(error => {
                     console.error('刪除失敗:', error);
                     alert('刪除失敗，請稍後再試');

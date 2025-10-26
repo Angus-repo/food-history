@@ -20,6 +20,8 @@ import org.springframework.security.oauth2.client.authentication.OAuth2Authentic
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 
 import java.time.Duration;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 共享的 WebDriver 管理器，避免每個 Step Definition 類都創建自己的 WebDriver
@@ -40,6 +42,9 @@ public class SharedWebDriverManager {
     private static WebDriverWait wait;
     private static String baseUrl;
     private static int testCount = 0;
+    
+    // ID映射表：期望的ID -> 實際的ID
+    private static Map<Long, Long> foodIdMapping = new HashMap<>();
 
     /**
      * 在所有 @ui 測試開始前初始化 WebDriver
@@ -104,6 +109,9 @@ public class SharedWebDriverManager {
             try {
                 // 清除 cookies 和 local storage，確保下一個測試從乾淨狀態開始
                 driver.manage().deleteAllCookies();
+                
+                // 清除ID映射
+                clearFoodIdMapping();
                 
                 if (scenario.isFailed()) {
                     System.err.println("❌ 測試失敗：" + scenario.getName());
@@ -183,5 +191,26 @@ public class SharedWebDriverManager {
             throw new IllegalStateException("Base URL 尚未設定！請確保測試場景有 @ui 標籤");
         }
         return baseUrl;
+    }
+    
+    /**
+     * 映射期望的食物ID到實際的ID
+     */
+    public static void mapFoodId(long expectedId, long actualId) {
+        foodIdMapping.put(expectedId, actualId);
+    }
+    
+    /**
+     * 獲取實際的食物ID
+     */
+    public static long getActualFoodId(long expectedId) {
+        return foodIdMapping.getOrDefault(expectedId, expectedId);
+    }
+    
+    /**
+     * 清除ID映射
+     */
+    public static void clearFoodIdMapping() {
+        foodIdMapping.clear();
     }
 }
