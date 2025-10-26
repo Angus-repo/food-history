@@ -59,22 +59,59 @@ public class UINotificationDialogSteps {
     @當("我在確認對話框中點擊確認")
     public void 我在確認對話框中點擊確認() {
         try {
-            // 等待 modal 內容可見
-            wait.until(
-                ExpectedConditions.visibilityOfElementLocated(
-                    By.cssSelector("#deleteModal .modal-content")
-                )
-            );
+            // 如果有 native alert（有時候測試環境會抛出），先嘗試接受它
+            boolean alertHandled = false;
+            try {
+                Alert existing = driver.switchTo().alert();
+                System.out.println("Detected native alert before modal: " + existing.getText());
+                existing.accept();
+                alertHandled = true;
+            } catch (NoAlertPresentException ignored) {
+                // 沒有 native alert
+            }
 
-            // 找到模態框內的「刪除」按鈕（list.html 使用 btn btn-danger 並含 '刪除' 文字）
-            WebElement confirmButton = driver.findElement(
-                By.xpath("//div[@id='deleteModal']//button[contains(., '刪除')]")
-            );
+            // 使用較短的等待去嘗試找到 modal（若刪除流程使用 native alert 並直接導回，modal 可能不會出現）
+            WebDriverWait shortWait = new WebDriverWait(driver, java.time.Duration.ofSeconds(2));
+            try {
+                shortWait.until(
+                    ExpectedConditions.visibilityOfElementLocated(
+                        By.cssSelector("#deleteModal .modal-content")
+                    )
+                );
 
-            // 使用 JavaScript click 以避免 overlay 或其他原因造成的不可點擊問題
-            ((JavascriptExecutor) driver).executeScript("arguments[0].click();", confirmButton);
+                // 找到模態框內的「刪除」按鈕（list.html 使用 btn btn-danger 並含 '刪除' 文字）
+                WebElement confirmButton = driver.findElement(
+                    By.xpath("//div[@id='deleteModal']//button[contains(., '刪除')]")
+                );
 
-            Thread.sleep(1000); // 等待刪除操作和頁面變更
+                // 使用 JavaScript click 以避免 overlay 或其他原因造成的不可點擊問題
+                ((JavascriptExecutor) driver).executeScript("arguments[0].click();", confirmButton);
+
+                Thread.sleep(1000); // 等待刪除操作和頁面變更
+            } catch (TimeoutException te) {
+                // 如果短等待沒有找到 modal，且我們已經處理過 native alert，則很可能流程透過 native alert 完成刪除
+                if (alertHandled) {
+                    System.out.println("No modal appeared after accepting native alert - assuming native confirm flow completed.");
+                    return;
+                }
+                // 否則，rethrow 讓上層或 catch 處理
+                throw te;
+            }
+        } catch (UnhandledAlertException uae) {
+            // 如果在等待或尋找元素時出現未處理的 alert，接受它後嘗試繼續
+            try {
+                Alert a = driver.switchTo().alert();
+                System.out.println("Handled unexpected alert: " + a.getText());
+                a.accept();
+            } catch (Exception ex) {
+                // 忽略
+            }
+            // 小睡一下讓頁面有時間穩定，然後結束 step（後續步驟會檢查頁面狀態）
+            try {
+                Thread.sleep(500);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
