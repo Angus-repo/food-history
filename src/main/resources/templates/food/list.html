@@ -1237,14 +1237,16 @@
         /* 標題連結樣式 */
         .title-link {
             text-decoration: underline;
-            text-decoration-color: var(--primary-400);
+            /* 使用與「新增食物」按鈕相同的主色作為文字與底線顏色 */
+            text-decoration-color: var(--primary-700);
+            color: var(--primary-700) !important;
             text-underline-offset: 4px;
             transition: all 0.2s ease;
         }
-        
+
         .title-link:hover {
-            text-decoration-color: var(--primary-600);
-            color: var(--primary-600) !important;
+            text-decoration-color: var(--primary-800);
+            color: var(--primary-800) !important;
         }
     </style>
 </body>
