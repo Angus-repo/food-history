@@ -1,6 +1,46 @@
 {
 	"version": "2.0.0",
+	"inputs": [
+		{
+		"id": "cucumberScenarioName",
+		"type": "promptString",
+		"description": "要執行的 Cucumber 場景名稱（可輸入部分文字或正規表達式）",
+		"default": "確認刪除食物後顯示成功通知"
+		}
+	],
 	"tasks": [
+		{
+			"label": "Run Single UI Test",
+			"type": "shell",
+			"command": "mvn",
+			"args": [
+				"clean",
+				"test",
+				"-Dtest=RunSingleUITest",
+				"-Dspring.profiles.active=test"
+			],
+			"group": "test",
+			"presentation": {
+				"reveal": "always",
+				"panel": "new"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Run UI Tests",
+			"type": "shell",
+			"command": "mvn",
+			"args": [
+				"test",
+				"-Dtest=RunUIBDDTest"
+			],
+			"group": "test",
+			"presentation": {
+				"reveal": "always",
+				"panel": "new"
+			},
+			"problemMatcher": []
+		},
 		{
 			"label": "Run BDD Tests",
 			"type": "shell",
@@ -29,12 +69,107 @@
 			}
 		},
 		{
+			"label": "Open UI Test Report",
+			"type": "shell",
+			"command": "open",
+			"args": [
+				"target/cucumber-reports/ui-cucumber.html"
+			],
+			"problemMatcher": [],
+			"presentation": {
+				"reveal": "silent"
+			}
+		},
+		{
+			"label": "Run All BDD Tests",
+			"type": "shell",
+			"command": "mvn",
+			"args": [
+				"test",
+				"-Dtest=RunCucumberTest"
+			],
+			"group": "test",
+			"presentation": {
+				"reveal": "always",
+				"panel": "new"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Run All BDD Tests (Including UI)",
+			"type": "shell",
+			"command": "mvn",
+			"args": [
+				"test",
+				"-Dtest=RunCucumberTest,RunUIBDDTest"
+			],
+			"group": "test",
+			"presentation": {
+				"reveal": "always",
+				"panel": "new"
+			},
+			"problemMatcher": []
+		},
+		{
 			"label": "Run BDD Tests and Open Report",
 			"dependsOrder": "sequence",
 			"dependsOn": [
 				"Run BDD Tests",
 				"Open BDD Test Report"
 			],
+			"group": "test",
+			"problemMatcher": []
+		},
+		{
+			"label": "Run UI Tests and Open Report",
+			"dependsOrder": "sequence",
+			"dependsOn": [
+				"Run UI Tests",
+				"Open UI Test Report"
+			],
+			"group": "test",
+			"problemMatcher": []
+		},
+		{
+			"label": "Run All Tests and Open Reports",
+			"dependsOrder": "sequence",
+			"dependsOn": [
+				"Run All BDD Tests",
+				"Open BDD Test Report"
+			],
+			"group": {
+				"kind": "test",
+				"isDefault": true
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Run All Tests (With UI) and Open Reports",
+			"dependsOrder": "sequence",
+			"dependsOn": [
+				"Run All BDD Tests (Including UI)",
+				"Open BDD Test Report",
+				"Open UI Test Report"
+			],
+			"group": "test",
+			"problemMatcher": []
+		},
+		{
+			"label": "Run Single UI BDD Scenario",
+			"type": "shell",
+			"command": "mvn",
+			"args": [
+				"test",
+				"-Dtest=RunUIBDDTest",
+				"-Dcucumber.filter.name=${input:cucumberScenarioName}",
+				"-Dspring.profiles.active=test"
+			],
+			"presentation": {
+				"echo": true,
+				"reveal": "always",
+				"focus": false,
+				"panel": "shared"
+			},
 			"group": {
 				"kind": "test",
 				"isDefault": true
