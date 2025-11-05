@@ -335,7 +335,8 @@ public class FoodController {
     // 提供影像檔案存取
     @GetMapping("/images/{filename:.+}")
     @ResponseBody
-    public ResponseEntity<Resource> serveImage(@PathVariable String filename) {
+    public ResponseEntity<Resource> serveImage(@PathVariable String filename,
+                                               @RequestHeader(value = HttpHeaders.IF_NONE_MATCH, required = false) String ifNoneMatch) {
         try {
             Path filePath = fileStorageService.getImagePath(filename);
             if (filePath == null || !Files.exists(filePath)) {
@@ -352,7 +353,7 @@ public class FoodController {
                 
                 return ResponseEntity.ok()
                         .contentType(MediaType.parseMediaType(contentType))
-                        .header(HttpHeaders.CACHE_CONTROL, "max-age=31536000")
+                        .header(HttpHeaders.CACHE_CONTROL, "max-age=0, must-revalidate")
                         .body(resource);
             } else {
                 return ResponseEntity.notFound().build();
