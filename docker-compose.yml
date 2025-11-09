@@ -18,7 +18,7 @@ services:
 
   nginx:
     image: nginx:latest
-    container_name: nginx
+    container_name: nginx-history
     restart: always
     ports:
       - "82:80"
