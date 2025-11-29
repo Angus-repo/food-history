@@ -434,20 +434,24 @@ class OfflineSearchManager {
     showNotification(message, type = 'info') {
         const notification = document.createElement('div');
         const alertType = type === 'error' ? 'danger' : type;
-        notification.className = `alert alert-${alertType} offline-notification`;
+        notification.className = `alert alert-${alertType}`;
         notification.style.cssText = `
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 10000;
-            min-width: 300px;
-            animation: slideInRight 0.3s ease;
-            padding: 1rem 1.5rem;
+            position: fixed !important;
+            top: 20px !important;
+            left: 50% !important;
+            right: auto !important;
+            transform: translateX(-50%) !important;
+            z-index: 10000 !important;
+            min-width: 420px;
+            max-width: 90vw;
+            padding: 1rem 2rem;
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: 0.5rem;
             border-radius: 0.5rem;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            text-align: center;
         `;
         
         const icon = type === 'success' ? 'check-circle' : 
@@ -876,16 +880,16 @@ offlineStyles.textContent = `
     
     /* 離線通知 */
     .offline-notification {
-        animation: slideInRight 0.3s ease;
+        animation: slideDown 0.3s ease;
     }
     
-    @keyframes slideInRight {
+    @keyframes slideDown {
         from {
-            transform: translateX(100%);
+            transform: translateX(-50%) translateY(-100%);
             opacity: 0;
         }
         to {
-            transform: translateX(0);
+            transform: translateX(-50%) translateY(0);
             opacity: 1;
         }
     }

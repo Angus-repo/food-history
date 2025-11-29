@@ -11,7 +11,7 @@ workbox.setConfig({ debug: false });
 
 // 快取名稱配置
 const CACHE_PREFIX = 'food-history';
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const OFFLINE_DATA_CACHE = `${CACHE_PREFIX}-offline-data-${CACHE_VERSION}`;
 const IMAGE_CACHE = `${CACHE_PREFIX}-images-${CACHE_VERSION}`;
 const STATIC_CACHE = `${CACHE_PREFIX}-static-${CACHE_VERSION}`;
@@ -19,14 +19,14 @@ const HTML_CACHE = `${CACHE_PREFIX}-html-${CACHE_VERSION}`;
 
 // 預快取靜態資源
 workbox.precaching.precacheAndRoute([
-    { url: '/css/main.css', revision: null },
-    { url: '/css/recommendations.css', revision: null },
-    { url: '/css/bootstrap-icons.css', revision: null },
-    { url: '/fonts/bootstrap-icons.woff2', revision: null },
-    { url: '/fonts/bootstrap-icons.woff', revision: null },
-    { url: '/js/food.js', revision: null },
-    { url: '/js/offline-search.js', revision: null },
-    { url: '/manifest.json', revision: null }
+    { url: '/css/main.css', revision: '3' },
+    { url: '/css/recommendations.css', revision: '3' },
+    { url: '/css/bootstrap-icons.css', revision: '3' },
+    { url: '/fonts/bootstrap-icons.woff2', revision: '3' },
+    { url: '/fonts/bootstrap-icons.woff', revision: '3' },
+    { url: '/js/food.js', revision: '3' },
+    { url: '/js/offline-search.js', revision: '3' },
+    { url: '/manifest.json', revision: '3' }
 ]);
 
 // 快取策略：靜態資源 (CSS, JS)
