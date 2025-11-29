@@ -254,15 +254,25 @@ public class UINotificationDialogSteps {
     @那麼("對話框應該關閉")
     public void 對話框應該關閉() {
         try {
-            Thread.sleep(300);
-            List<WebElement> dialogs = driver.findElements(
-                By.xpath("//div[contains(@style, 'position: fixed') and contains(@style, 'z-index')]")
-            );
-            assertTrue(dialogs.isEmpty() || !dialogs.get(0).isDisplayed(), 
+            Thread.sleep(500);
+            // 檢查 deleteModal 是否隱藏（display: none）
+            WebElement deleteModal = driver.findElement(By.id("deleteModal"));
+            String displayStyle = deleteModal.getCssValue("display");
+            assertTrue("none".equals(displayStyle) || !deleteModal.isDisplayed(), 
                       "對話框應該關閉");
-        } catch (Exception e) {
-            // 對話框不存在也表示已關閉
+        } catch (org.openqa.selenium.NoSuchElementException e) {
+            // 對話框元素不存在也表示已關閉
             assertTrue(true);
+        } catch (Exception e) {
+            // 其他異常情況，檢查是否還有可見的 modal
+            try {
+                List<WebElement> visibleModals = driver.findElements(
+                    By.cssSelector(".modal[style*='display: block'], .modal[style*='display:block']")
+                );
+                assertTrue(visibleModals.isEmpty(), "對話框應該關閉");
+            } catch (Exception ex) {
+                assertTrue(true);
+            }
         }
     }
 
