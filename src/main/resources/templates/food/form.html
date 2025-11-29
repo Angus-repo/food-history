@@ -4,18 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title th:text="${food.id == null ? '新增食物 - 食物歷史' : '編輯食物 - 食物歷史'}">新增/編輯食物</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.8.0/font/bootstrap-icons.css" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="/css/bootstrap-icons.css" rel="stylesheet">
     <link rel="stylesheet" th:href="@{/css/main.css}">
 </head>
 <body>
+    <!-- 離線橫幅 -->
+    <div id="offlineBanner" class="offline-banner">
+        <i class="bi bi-wifi-off"></i>
+        您目前處於離線模式，無法新增、修改或刪除資料
+    </div>
     <div class="container fade-in">
         <!-- 頁面標題 -->
         <header class="page-header">
-            <h1 class="page-title">
-                <i class="bi bi-journal-plus"></i>
-                <span th:text="${food.id == null ? '新增食物' : '編輯食物'}">新增/編輯食物</span>
-            </h1>
+            <div class="header-left">
+                <h1 class="page-title">
+                    <i class="bi bi-journal-plus"></i>
+                    <span th:text="${food.id == null ? '新增食物' : '編輯食物'}">新增/編輯食物</span>
+                </h1>
+                <!-- 連線狀態指示器 -->
+                <div id="connectionIndicator" class="connection-indicator online">
+                    <i class="bi bi-wifi"></i> 線上
+                </div>
+            </div>
             <div class="flex gap-3">
                 <a href="#" 
                    onclick="event.preventDefault(); goBackToList();" 
@@ -37,6 +47,7 @@
                 <button th:if="${food.id != null}" 
                         type="button" 
                         class="btn btn-danger" 
+                        id="deleteBtn"
                         th:onclick="'deleteFood(' + ${food.id} + ')'">
                     <i class="bi bi-trash"></i>
                     刪除
@@ -590,6 +601,13 @@
         
         // 表單驗證
         document.getElementById('foodForm').addEventListener('submit', function(event) {
+            // 離線時阻止提交
+            if (!navigator.onLine) {
+                event.preventDefault();
+                showValidationError('您目前處於離線模式，無法儲存資料。請等待網路恢復後再試。');
+                return false;
+            }
+            
             // 清除所有錯誤樣式
             document.querySelectorAll('.input-error').forEach(el => el.classList.remove('input-error'));
 
@@ -692,6 +710,12 @@
 
         // 刪除功能
         function deleteFood(id) {
+            // 離線時阻止刪除
+            if (!navigator.onLine) {
+                showValidationError('您目前處於離線模式，無法刪除資料。請等待網路恢復後再試。');
+                return;
+            }
+            
             if (confirm('您確定要刪除這個食物記錄嗎？此操作無法復原。')) {
                 fetch(`/foods/${id}`, {
                     method: 'DELETE'
@@ -724,6 +748,12 @@
 
         // 切換最愛功能
         function toggleFavorite(id) {
+            // 離線時阻止操作
+            if (!navigator.onLine) {
+                showValidationError('您目前處於離線模式，無法變更收藏狀態。請等待網路恢復後再試。');
+                return;
+            }
+            
             const btn = document.getElementById('favoriteBtn');
             const icon = btn.querySelector('.favorite-icon');
             const text = btn.querySelector('.favorite-text');
@@ -757,9 +787,294 @@
             });
         }
 
+        // 連線狀態管理（使用 Server-Sent Events）
+        const ConnectionManager = {
+            lastOnlineState: null,
+            eventSource: null,
+            reconnectTimeout: null,
+            reconnectDelay: 1000, // 重連延遲，會逐漸增加
+            maxReconnectDelay: 30000, // 最大重連延遲 30 秒
+            sseEndpoint: '/api/foods/connection-stream',
+            
+            init() {
+                // 先假設離線狀態，等 SSE 連線成功後再更新為線上
+                // 這樣可以確保離線時 UI 正確顯示
+                this.updateUI(false);
+                
+                // 使用 SSE 建立持久連線
+                this.connectSSE();
+                
+                // 頁面可見性變化時重新連線
+                document.addEventListener('visibilitychange', () => {
+                    if (document.visibilityState === 'visible') {
+                        // 頁面恢復可見時，如果連線已斷開，嘗試重新連線
+                        if (!this.eventSource || this.eventSource.readyState === EventSource.CLOSED) {
+                            this.connectSSE();
+                        }
+                    }
+                }, { passive: true });
+            },
+            
+            connectSSE() {
+                // 清理舊連線
+                if (this.eventSource) {
+                    this.eventSource.close();
+                }
+                
+                if (this.reconnectTimeout) {
+                    clearTimeout(this.reconnectTimeout);
+                    this.reconnectTimeout = null;
+                }
+                
+                console.log('[Connection] 正在建立 SSE 連線...');
+                
+                try {
+                    this.eventSource = new EventSource(this.sseEndpoint);
+                } catch (error) {
+                    // EventSource 建立失敗（可能是離線）
+                    console.log('[Connection] 無法建立 SSE 連線:', error);
+                    this.handleOffline();
+                    this.scheduleReconnect();
+                    return;
+                }
+                
+                // 連線成功（收到 connected 事件）
+                this.eventSource.addEventListener('connected', (event) => {
+                    console.log('[Connection] SSE 連線已建立:', event.data);
+                    this.reconnectDelay = 1000; // 重置重連延遲
+                    this.handleOnline();
+                });
+                
+                // 連線開啟
+                this.eventSource.onopen = () => {
+                    console.log('[Connection] SSE 連線開啟');
+                };
+                
+                // 連線錯誤（伺服器離線或網路問題）
+                this.eventSource.onerror = (error) => {
+                    console.log('[Connection] SSE 連線錯誤，伺服器可能離線');
+                    this.eventSource.close();
+                    this.handleOffline();
+                    this.scheduleReconnect();
+                };
+            },
+            
+            scheduleReconnect() {
+                if (this.reconnectTimeout) return; // 已經排程中
+                
+                console.log(`[Connection] 將在 ${this.reconnectDelay / 1000} 秒後嘗試重新連線...`);
+                
+                this.reconnectTimeout = setTimeout(() => {
+                    this.reconnectTimeout = null;
+                    this.connectSSE();
+                }, this.reconnectDelay);
+                
+                // 指數退避，增加重連延遲
+                this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay);
+            },
+            
+            handleOnline() {
+                if (this.lastOnlineState === true) return; // 避免重複觸發
+                this.lastOnlineState = true;
+                console.log('[Connection] 伺服器已連線');
+                this.updateUI(true);
+                this.showNotification('伺服器已恢復連線', 'success');
+            },
+            
+            handleOffline() {
+                if (this.lastOnlineState === false) return; // 避免重複觸發
+                this.lastOnlineState = false;
+                console.log('[Connection] 伺服器連線中斷');
+                this.updateUI(false);
+                this.showNotification('無法連線到伺服器，已切換至離線模式', 'warning');
+            },
+            
+            updateUI(isOnline) {
+                const indicator = document.getElementById('connectionIndicator');
+                const banner = document.getElementById('offlineBanner');
+                const submitBtn = document.querySelector('#foodForm button[type="submit"]');
+                const deleteBtn = document.getElementById('deleteBtn');
+                const favoriteBtn = document.getElementById('favoriteBtn');
+                const formInputs = document.querySelectorAll('#foodForm input:not([type="hidden"]), #foodForm textarea, #foodForm select');
+                
+                if (indicator) {
+                    if (isOnline) {
+                        indicator.className = 'connection-indicator online';
+                        indicator.innerHTML = '<i class="bi bi-wifi"></i> 線上';
+                    } else {
+                        indicator.className = 'connection-indicator offline';
+                        indicator.innerHTML = '<i class="bi bi-wifi-off"></i> 離線';
+                    }
+                }
+                
+                if (banner) {
+                    if (isOnline) {
+                        banner.style.display = 'none';
+                        document.body.classList.remove('offline-mode');
+                    } else {
+                        banner.style.display = 'block';
+                        document.body.classList.add('offline-mode');
+                    }
+                }
+                
+                // 控制表單和按鈕的啟用/禁用狀態
+                if (submitBtn) {
+                    submitBtn.disabled = !isOnline;
+                    if (!isOnline) {
+                        submitBtn.classList.add('btn-disabled');
+                        submitBtn.title = '離線時無法儲存';
+                    } else {
+                        submitBtn.classList.remove('btn-disabled');
+                        submitBtn.title = '';
+                    }
+                }
+                
+                if (deleteBtn) {
+                    deleteBtn.disabled = !isOnline;
+                    if (!isOnline) {
+                        deleteBtn.classList.add('btn-disabled');
+                        deleteBtn.title = '離線時無法刪除';
+                    } else {
+                        deleteBtn.classList.remove('btn-disabled');
+                        deleteBtn.title = '';
+                    }
+                }
+                
+                if (favoriteBtn) {
+                    favoriteBtn.disabled = !isOnline;
+                    if (!isOnline) {
+                        favoriteBtn.classList.add('btn-disabled');
+                        favoriteBtn.title = '離線時無法變更收藏狀態';
+                    } else {
+                        favoriteBtn.classList.remove('btn-disabled');
+                        favoriteBtn.title = '';
+                    }
+                }
+                
+                // 控制表單輸入欄位的啟用/禁用狀態
+                formInputs.forEach(input => {
+                    input.disabled = !isOnline;
+                    if (!isOnline) {
+                        input.classList.add('input-disabled');
+                    } else {
+                        input.classList.remove('input-disabled');
+                    }
+                });
+            },
+            
+            showNotification(message, type) {
+                const notification = document.createElement('div');
+                notification.className = `alert alert-${type === 'success' ? 'success' : 'warning'}`;
+                const topOffset = document.body.classList.contains('offline-mode') ? 68 : 20;
+                notification.style.cssText = `
+                    position: fixed;
+                    top: ${topOffset}px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    z-index: 1100;
+                    padding: 12px 24px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                    animation: slideDown 0.3s ease;
+                    min-width: 280px;
+                    max-width: 90vw;
+                    text-align: center;
+                    white-space: nowrap;
+                `;
+                notification.innerHTML = `<i class="bi bi-${type === 'success' ? 'wifi' : 'wifi-off'}"></i> ${message}`;
+                document.body.appendChild(notification);
+                
+                setTimeout(() => {
+                    notification.style.animation = 'slideUp 0.3s ease';
+                    setTimeout(() => notification.remove(), 300);
+                }, 3000);
+            }
+        };
+        
+        // 頁面載入時初始化連線狀態管理
+        document.addEventListener('DOMContentLoaded', () => {
+            ConnectionManager.init();
+        });
+
     </script>
 
     <style>
+        /* 離線橫幅 - 固定在頁面頂部 */
+        .offline-banner {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1050;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            padding: 0.75rem 1rem;
+            text-align: center;
+            font-weight: 500;
+            display: none;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+        
+        .offline-banner i {
+            margin-right: 0.5rem;
+        }
+        
+        /* 當離線橫幅顯示時，為 body 添加 padding-top */
+        body.offline-mode {
+            padding-top: 48px;
+        }
+        
+        /* 連線狀態指示器 */
+        .connection-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+        
+        .connection-indicator.online {
+            background: var(--success-100, #dcfce7);
+            color: var(--success-700, #15803d);
+        }
+        
+        .connection-indicator.offline {
+            background: var(--warning-100, #fef3c7);
+            color: var(--warning-700, #a16207);
+        }
+        
+        /* 通知動畫 */
+        @keyframes slideDown {
+            from { opacity: 0; transform: translate(-50%, -20px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
+        @keyframes slideUp {
+            from { opacity: 1; transform: translate(-50%, 0); }
+            to { opacity: 0; transform: translate(-50%, -20px); }
+        }
+        
+        /* 頁面標題左側區塊 */
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: var(--space-3);
+        }
+        
+        /* 離線時禁用按鈕樣式 */
+        .btn-disabled {
+            opacity: 0.5;
+            cursor: not-allowed !important;
+            pointer-events: none;
+        }
+        
+        /* 離線時禁用輸入框樣式 */
+        .input-disabled {
+            opacity: 0.6;
+            background-color: #f3f4f6 !important;
+            cursor: not-allowed !important;
+        }
         
         /* 食物名稱和單位容器 */
         .name-unit-container {

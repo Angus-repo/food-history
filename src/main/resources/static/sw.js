@@ -1,0 +1,494 @@
+/**
+ * 食物歷史應用程式 - Service Worker
+ * 使用 Workbox 實現離線查詢功能
+ */
+
+// 從 CDN 載入 Workbox
+importScripts('https://storage.googleapis.com/workbox-cdn/releases/7.0.0/workbox-sw.js');
+
+// 設定 Workbox
+workbox.setConfig({ debug: false });
+
+// 快取名稱配置
+const CACHE_PREFIX = 'food-history';
+const CACHE_VERSION = 'v1';
+const OFFLINE_DATA_CACHE = `${CACHE_PREFIX}-offline-data-${CACHE_VERSION}`;
+const IMAGE_CACHE = `${CACHE_PREFIX}-images-${CACHE_VERSION}`;
+const STATIC_CACHE = `${CACHE_PREFIX}-static-${CACHE_VERSION}`;
+const HTML_CACHE = `${CACHE_PREFIX}-html-${CACHE_VERSION}`;
+
+// 預快取靜態資源
+workbox.precaching.precacheAndRoute([
+    { url: '/css/main.css', revision: null },
+    { url: '/css/recommendations.css', revision: null },
+    { url: '/css/bootstrap-icons.css', revision: null },
+    { url: '/fonts/bootstrap-icons.woff2', revision: null },
+    { url: '/fonts/bootstrap-icons.woff', revision: null },
+    { url: '/js/food.js', revision: null },
+    { url: '/js/offline-search.js', revision: null },
+    { url: '/manifest.json', revision: null }
+]);
+
+// 快取策略：靜態資源 (CSS, JS)
+workbox.routing.registerRoute(
+    ({ request }) => request.destination === 'style' || request.destination === 'script',
+    new workbox.strategies.StaleWhileRevalidate({
+        cacheName: STATIC_CACHE,
+        plugins: [
+            new workbox.expiration.ExpirationPlugin({
+                maxEntries: 50,
+                maxAgeSeconds: 30 * 24 * 60 * 60 // 30 天
+            })
+        ]
+    })
+);
+
+// 快取策略：本地字體檔案
+workbox.routing.registerRoute(
+    ({ url }) => url.pathname.startsWith('/fonts/'),
+    new workbox.strategies.CacheFirst({
+        cacheName: `${CACHE_PREFIX}-fonts-${CACHE_VERSION}`,
+        plugins: [
+            new workbox.expiration.ExpirationPlugin({
+                maxEntries: 10,
+                maxAgeSeconds: 365 * 24 * 60 * 60 // 1 年
+            }),
+            new workbox.cacheableResponse.CacheableResponsePlugin({
+                statuses: [0, 200]
+            })
+        ]
+    })
+);
+
+// 快取策略：食物圖片
+workbox.routing.registerRoute(
+    ({ url }) => url.pathname.startsWith('/foods/images/'),
+    new workbox.strategies.CacheFirst({
+        cacheName: IMAGE_CACHE,
+        plugins: [
+            new workbox.expiration.ExpirationPlugin({
+                maxEntries: 200,
+                maxAgeSeconds: 7 * 24 * 60 * 60 // 7 天
+            }),
+            new workbox.cacheableResponse.CacheableResponsePlugin({
+                statuses: [0, 200]
+            })
+        ]
+    })
+);
+
+// 快取策略：離線資料 API
+workbox.routing.registerRoute(
+    ({ url }) => url.pathname === '/api/foods/offline-cache',
+    new workbox.strategies.NetworkFirst({
+        cacheName: OFFLINE_DATA_CACHE,
+        plugins: [
+            new workbox.expiration.ExpirationPlugin({
+                maxEntries: 1,
+                maxAgeSeconds: 24 * 60 * 60 // 1 天
+            }),
+            new workbox.cacheableResponse.CacheableResponsePlugin({
+                statuses: [0, 200]
+            })
+        ]
+    })
+);
+
+// 快取策略：CDN 資源 (Bootstrap CSS/JS)
+workbox.routing.registerRoute(
+    ({ url }) => url.hostname === 'cdn.jsdelivr.net',
+    new workbox.strategies.CacheFirst({
+        cacheName: `${CACHE_PREFIX}-cdn-${CACHE_VERSION}`,
+        plugins: [
+            new workbox.expiration.ExpirationPlugin({
+                maxEntries: 30,
+                maxAgeSeconds: 30 * 24 * 60 * 60 // 30 天
+            }),
+            new workbox.cacheableResponse.CacheableResponsePlugin({
+                statuses: [0, 200]
+            })
+        ]
+    })
+);
+
+// 快取策略：HTML 頁面（食物列表頁面、編輯頁面）- 使用 NetworkFirst，離線時回退到快取
+// 注意：新增頁面 /foods/new 不需要快取，因為離線時無法新增資料
+workbox.routing.registerRoute(
+    ({ request, url }) => {
+        // 匹配 /foods 相關頁面（列表、編輯）
+        if (request.destination === 'document') {
+            const pathname = url.pathname;
+            // 匹配：/foods, /foods/{id}/edit（不包含 /foods/new）
+            return pathname === '/foods' || 
+                   pathname.match(/^\/foods\/\d+\/edit$/);
+        }
+        return false;
+    },
+    new workbox.strategies.NetworkFirst({
+        cacheName: HTML_CACHE,
+        plugins: [
+            new workbox.expiration.ExpirationPlugin({
+                maxEntries: 50, // 支援多個編輯頁面的快取
+                maxAgeSeconds: 7 * 24 * 60 * 60 // 7 天
+            }),
+            new workbox.cacheableResponse.CacheableResponsePlugin({
+                statuses: [0, 200]
+            }),
+            // 忽略查詢參數，使 /foods/374/edit?page=0 匹配 /foods/374/edit 的快取
+            {
+                cacheKeyWillBeUsed: async ({ request }) => {
+                    const url = new URL(request.url);
+                    // 移除查詢參數，只保留路徑
+                    return url.pathname;
+                }
+            }
+        ],
+        networkTimeoutSeconds: 3 // 3 秒內沒回應就用快取
+    })
+);
+
+// 快取策略：登入頁面
+workbox.routing.registerRoute(
+    ({ request, url }) => {
+        return request.destination === 'document' && url.pathname === '/login';
+    },
+    new workbox.strategies.NetworkFirst({
+        cacheName: HTML_CACHE,
+        plugins: [
+            new workbox.expiration.ExpirationPlugin({
+                maxEntries: 5,
+                maxAgeSeconds: 7 * 24 * 60 * 60
+            }),
+            new workbox.cacheableResponse.CacheableResponsePlugin({
+                statuses: [0, 200]
+            })
+        ],
+        networkTimeoutSeconds: 3
+    })
+);
+
+// 監聽安裝事件
+self.addEventListener('install', (event) => {
+    console.log('[Service Worker] 安裝中...');
+    
+    // 預先快取重要的 HTML 頁面
+    event.waitUntil(
+        caches.open(HTML_CACHE).then((cache) => {
+            console.log('[Service Worker] 預快取 HTML 頁面');
+            return cache.addAll([
+                '/foods',
+                '/login'
+            ]).catch(err => {
+                console.warn('[Service Worker] 預快取失敗，可能需要先登入:', err);
+            });
+        })
+    );
+    
+    self.skipWaiting();
+});
+
+// 監聽啟動事件
+self.addEventListener('activate', (event) => {
+    console.log('[Service Worker] 啟動中...');
+    
+    // 清理舊版本快取
+    event.waitUntil(
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames
+                    .filter((cacheName) => cacheName.startsWith(CACHE_PREFIX))
+                    .filter((cacheName) => !cacheName.includes(CACHE_VERSION))
+                    .map((cacheName) => {
+                        console.log('[Service Worker] 刪除舊快取:', cacheName);
+                        return caches.delete(cacheName);
+                    })
+            );
+        })
+    );
+    
+    return self.clients.claim();
+});
+
+// 監聽來自主執行緒的訊息
+self.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
+    
+    if (event.data && event.data.type === 'PREFETCH_ALL_DATA') {
+        prefetchAllData(event);
+    }
+    
+    if (event.data && event.data.type === 'GET_CACHED_DATA') {
+        getCachedData(event);
+    }
+    
+    if (event.data && event.data.type === 'SEARCH_OFFLINE') {
+        searchOffline(event);
+    }
+    
+    if (event.data && event.data.type === 'CHECK_CACHE_VERSION') {
+        checkCacheVersion(event);
+    }
+});
+
+// 預載所有資料
+async function prefetchAllData(event) {
+    try {
+        // 通知開始預載
+        notifyClient(event, { type: 'PREFETCH_STARTED' });
+        
+        // 1. 獲取離線資料
+        const dataResponse = await fetch('/api/foods/offline-cache');
+        if (!dataResponse.ok) throw new Error('無法獲取離線資料');
+        
+        const data = await dataResponse.json();
+        
+        // 快取離線資料
+        const dataCache = await caches.open(OFFLINE_DATA_CACHE);
+        await dataCache.put('/api/foods/offline-cache', new Response(JSON.stringify(data)));
+        
+        notifyClient(event, { 
+            type: 'PREFETCH_PROGRESS', 
+            progress: 20,
+            message: '已快取食物資料'
+        });
+        
+        // 2. 預載所有編輯頁面
+        const htmlCache = await caches.open(HTML_CACHE);
+        let loadedPages = 0;
+        const totalPages = data.foods.length;
+        
+        for (const food of data.foods) {
+            try {
+                const editUrl = `/foods/${food.id}/edit`;
+                const pageResponse = await fetch(editUrl);
+                if (pageResponse.ok) {
+                    await htmlCache.put(editUrl, pageResponse);
+                }
+                loadedPages++;
+                
+                const progress = 20 + Math.floor((loadedPages / totalPages) * 30);
+                notifyClient(event, {
+                    type: 'PREFETCH_PROGRESS',
+                    progress,
+                    message: `已快取 ${loadedPages}/${totalPages} 個編輯頁面`
+                });
+            } catch (err) {
+                console.warn('[Service Worker] 編輯頁面快取失敗:', food.id);
+            }
+        }
+        
+        // 3. 預載所有圖片
+        const imageUrls = data.foods
+            .filter(food => food.imagePath)
+            .map(food => `/foods/images/${food.imagePath}`);
+        
+        const imageCache = await caches.open(IMAGE_CACHE);
+        let loadedImages = 0;
+        
+        for (const imageUrl of imageUrls) {
+            try {
+                const imageResponse = await fetch(imageUrl);
+                if (imageResponse.ok) {
+                    await imageCache.put(imageUrl, imageResponse);
+                }
+                loadedImages++;
+                
+                const progress = 50 + Math.floor((loadedImages / imageUrls.length) * 45);
+                notifyClient(event, {
+                    type: 'PREFETCH_PROGRESS',
+                    progress,
+                    message: `已快取 ${loadedImages}/${imageUrls.length} 張圖片`
+                });
+            } catch (err) {
+                console.warn('[Service Worker] 圖片快取失敗:', imageUrl);
+            }
+        }
+        
+        // 4. 儲存快取版本資訊
+        const versionInfo = {
+            version: data.cacheVersion,
+            timestamp: data.timestamp,
+            totalFoods: data.foods.length,
+            cachedAt: new Date().toISOString()
+        };
+        await dataCache.put('/api/foods/cache-version', new Response(JSON.stringify(versionInfo)));
+        
+        notifyClient(event, {
+            type: 'PREFETCH_COMPLETE',
+            progress: 100,
+            message: '所有資料已快取完成',
+            totalFoods: data.foods.length,
+            totalImages: loadedImages,
+            totalPages: loadedPages
+        });
+        
+    } catch (error) {
+        console.error('[Service Worker] 預載失敗:', error);
+        notifyClient(event, {
+            type: 'PREFETCH_ERROR',
+            error: error.message
+        });
+    }
+}
+
+// 獲取快取的資料
+async function getCachedData(event) {
+    try {
+        const cache = await caches.open(OFFLINE_DATA_CACHE);
+        const response = await cache.match('/api/foods/offline-cache');
+        
+        if (response) {
+            const data = await response.json();
+            notifyClient(event, {
+                type: 'CACHED_DATA',
+                data: data
+            });
+        } else {
+            notifyClient(event, {
+                type: 'CACHED_DATA',
+                data: null
+            });
+        }
+    } catch (error) {
+        notifyClient(event, {
+            type: 'CACHED_DATA_ERROR',
+            error: error.message
+        });
+    }
+}
+
+// 離線搜尋
+async function searchOffline(event) {
+    try {
+        const keyword = event.data.keyword || '';
+        const cache = await caches.open(OFFLINE_DATA_CACHE);
+        const response = await cache.match('/api/foods/offline-cache');
+        
+        if (!response) {
+            notifyClient(event, {
+                type: 'SEARCH_RESULT',
+                results: [],
+                keyword,
+                error: '無快取資料'
+            });
+            return;
+        }
+        
+        const data = await response.json();
+        const foods = data.foods || [];
+        
+        // 執行本地搜尋
+        const results = keyword.trim() === '' 
+            ? foods 
+            : foods.filter(food => {
+                const searchTerm = keyword.toLowerCase();
+                return (
+                    (food.name && food.name.toLowerCase().includes(searchTerm)) ||
+                    (food.notes && food.notes.toLowerCase().includes(searchTerm))
+                );
+            });
+        
+        notifyClient(event, {
+            type: 'SEARCH_RESULT',
+            results,
+            keyword,
+            totalCached: foods.length
+        });
+        
+    } catch (error) {
+        notifyClient(event, {
+            type: 'SEARCH_RESULT',
+            results: [],
+            error: error.message
+        });
+    }
+}
+
+// 檢查快取版本
+async function checkCacheVersion(event) {
+    try {
+        // 獲取本地版本
+        const cache = await caches.open(OFFLINE_DATA_CACHE);
+        const localVersionResponse = await cache.match('/api/foods/cache-version');
+        const localVersion = localVersionResponse ? await localVersionResponse.json() : null;
+        
+        // 獲取伺服器版本
+        let serverVersion = null;
+        try {
+            const serverResponse = await fetch('/api/foods/cache-version');
+            if (serverResponse.ok) {
+                serverVersion = await serverResponse.json();
+            }
+        } catch (err) {
+            // 離線時無法獲取伺服器版本
+        }
+        
+        const needsUpdate = serverVersion && localVersion && 
+            serverVersion.version !== localVersion.version;
+        
+        notifyClient(event, {
+            type: 'CACHE_VERSION_INFO',
+            localVersion,
+            serverVersion,
+            needsUpdate,
+            isOnline: !!serverVersion
+        });
+        
+    } catch (error) {
+        notifyClient(event, {
+            type: 'CACHE_VERSION_INFO',
+            error: error.message
+        });
+    }
+}
+
+// 通知客戶端
+function notifyClient(event, message) {
+    if (event.source) {
+        event.source.postMessage(message);
+    }
+}
+
+// 背景同步：當網路恢復時更新快取
+self.addEventListener('sync', (event) => {
+    if (event.tag === 'sync-food-data') {
+        event.waitUntil(syncFoodData());
+    }
+});
+
+async function syncFoodData() {
+    try {
+        console.log('[Service Worker] 背景同步開始...');
+        
+        const response = await fetch('/api/foods/offline-cache');
+        if (response.ok) {
+            const data = await response.json();
+            const cache = await caches.open(OFFLINE_DATA_CACHE);
+            await cache.put('/api/foods/offline-cache', new Response(JSON.stringify(data)));
+            
+            // 更新版本資訊
+            const versionInfo = {
+                version: data.cacheVersion,
+                timestamp: data.timestamp,
+                totalFoods: data.foods.length,
+                cachedAt: new Date().toISOString()
+            };
+            await cache.put('/api/foods/cache-version', new Response(JSON.stringify(versionInfo)));
+            
+            // 通知所有客戶端
+            const clients = await self.clients.matchAll();
+            clients.forEach(client => {
+                client.postMessage({
+                    type: 'BACKGROUND_SYNC_COMPLETE',
+                    totalFoods: data.foods.length
+                });
+            });
+            
+            console.log('[Service Worker] 背景同步完成');
+        }
+    } catch (error) {
+        console.error('[Service Worker] 背景同步失敗:', error);
+    }
+}

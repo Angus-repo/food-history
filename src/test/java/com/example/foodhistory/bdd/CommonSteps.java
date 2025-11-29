@@ -91,6 +91,9 @@ public class CommonSteps {
             } else {
                 food.setIsFavorite(false);
             }
+            if (row.containsKey("imagePath") && row.get("imagePath") != null && !row.get("imagePath").isEmpty()) {
+                food.setImagePath(row.get("imagePath"));
+            }
             
             food = foodRepository.save(food);
             foodMap.put(logicalId, food);
