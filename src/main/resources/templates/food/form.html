@@ -790,6 +790,8 @@
         // 連線狀態管理（使用 Server-Sent Events）
         const ConnectionManager = {
             lastOnlineState: null,
+            browserOnline: navigator.onLine, // 瀏覽器網路狀態
+            serverOnline: false, // 伺服器連線狀態
             eventSource: null,
             reconnectTimeout: null,
             reconnectDelay: 1000, // 重連延遲，會逐漸增加
@@ -798,12 +800,12 @@
             connectionConfirmed: false, // 是否已確認連線成功
             
             init() {
-                // 先根據瀏覽器的 navigator.onLine 設定初始狀態
-                const initialOnline = navigator.onLine;
-                this.updateUI(initialOnline);
-                if (initialOnline) {
-                    this.lastOnlineState = null; // 重置，讓 SSE 確認後可以正確觸發
-                }
+                // 初始狀態：瀏覽器在線但伺服器還未確認，顯示離線
+                this.browserOnline = navigator.onLine;
+                this.serverOnline = false;
+                // 初始顯示離線，等待 SSE 確認伺服器連線
+                this.updateUI(false);
+                console.log('[Connection] 初始化 - 瀏覽器:', this.browserOnline, '伺服器:', this.serverOnline);
                 
                 // 使用 SSE 建立持久連線
                 this.connectSSE();
@@ -811,6 +813,7 @@
                 // 監聯瀏覽器的 online/offline 事件
                 window.addEventListener('online', () => {
                     console.log('[Connection] 瀏覽器回報網路已連線');
+                    this.browserOnline = true;
                     // 網路恢復時，重置重連延遲並立即重新建立 SSE 連線
                     this.reconnectDelay = 1000;
                     // 清除任何現有的重連計時器
@@ -818,22 +821,22 @@
                         clearTimeout(this.reconnectTimeout);
                         this.reconnectTimeout = null;
                     }
-                    // 重置狀態以確保能正確觸發 handleOnline
-                    this.lastOnlineState = null;
+                    // 立即嘗試連線伺服器
                     this.connectSSE();
                 });
                 
                 window.addEventListener('offline', () => {
                     console.log('[Connection] 瀏覽器回報網路已斷線');
-                    // 立即關閉 SSE 連線並更新狀態
+                    this.browserOnline = false;
+                    // 瀏覽器離線，立即顯示離線（不管伺服器狀態）
+                    // 立即關閉 SSE 連線
                     if (this.eventSource) {
                         this.eventSource.close();
                         this.eventSource = null;
                     }
+                    this.serverOnline = false;
                     this.connectionConfirmed = false;
-                    // 強制更新為離線狀態（繞過重複檢查）
-                    this.lastOnlineState = null;
-                    this.handleOffline();
+                    this.updateConnectionState();
                 });
                 
                 // 頁面可見性變化時重新連線
@@ -888,7 +891,7 @@
                     console.log('[Connection] SSE 連線已建立:', event.data);
                     this.reconnectDelay = 1000; // 重置重連延遲
                     this.connectionConfirmed = true;
-                    this.handleOnline();
+                    this.setServerOnline(true);
                     // 開始心跳檢測
                     this.startHeartbeat();
                 });
@@ -907,7 +910,7 @@
                         if (!this.connectionConfirmed && this.eventSource && this.eventSource.readyState === EventSource.OPEN) {
                             console.log('[Connection] 伺服器未在預期時間內確認連線，視為已連線');
                             this.connectionConfirmed = true;
-                            this.handleOnline();
+                            this.setServerOnline(true);
                             this.startHeartbeat();
                         }
                     }, 3000);
@@ -919,7 +922,7 @@
                     // 只有在已經確認過連線成功後，錯誤才代表斷線
                     // 或者連線從未成功過且多次重試失敗
                     if (this.connectionConfirmed || this.reconnectDelay > 4000) {
-                        this.handleOffline();
+                        this.setServerOnline(false);
                     }
                     if (this.eventSource) {
                         this.eventSource.close();
@@ -970,27 +973,40 @@
                 }, 35000);
             },
             
-            handleOnline() {
-                const wasOffline = this.lastOnlineState === false;
-                if (this.lastOnlineState === true) return; // 避免重複觸發
-                this.lastOnlineState = true;
-                console.log('[Connection] 伺服器已連線');
-                this.updateUI(true);
-                // 只有從離線恢復時才顯示通知
-                if (wasOffline) {
-                    this.showNotification('伺服器已恢復連線', 'success');
-                }
+            // 設定伺服器連線狀態
+            setServerOnline(online) {
+                console.log('[Connection] setServerOnline:', online);
+                this.serverOnline = online;
+                this.updateConnectionState();
             },
             
-            handleOffline() {
-                if (this.lastOnlineState === false) return; // 避免重複觸發
+            // 計算並更新總體連線狀態
+            // 在線條件：瀏覽器在線 AND 伺服器連線成功
+            // 離線條件：瀏覽器離線 OR 伺服器離線
+            updateConnectionState() {
+                const isOnline = this.browserOnline && this.serverOnline;
+                console.log('[Connection] updateConnectionState - 瀏覽器:', this.browserOnline, '伺服器:', this.serverOnline, '=> 總體:', isOnline);
+                
+                const wasOffline = this.lastOnlineState === false;
                 const wasOnline = this.lastOnlineState === true;
-                this.lastOnlineState = false;
-                console.log('[Connection] 伺服器連線中斷');
-                this.updateUI(false);
-                // 只有從線上變離線時才顯示通知
-                if (wasOnline) {
-                    this.showNotification('無法連線到伺服器，已切換至離線模式', 'warning');
+                
+                if (this.lastOnlineState === isOnline) return; // 狀態沒變，不處理
+                
+                this.lastOnlineState = isOnline;
+                this.updateUI(isOnline);
+                
+                if (isOnline) {
+                    console.log('[Connection] 已連線（瀏覽器+伺服器都在線）');
+                    // 只有從離線恢復時才顯示通知
+                    if (wasOffline) {
+                        this.showNotification('已恢復連線', 'success');
+                    }
+                } else {
+                    console.log('[Connection] 已離線（瀏覽器或伺服器離線）');
+                    // 只有從線上變離線時才顯示通知
+                    if (wasOnline) {
+                        this.showNotification('連線已中斷，已切換至離線模式', 'warning');
+                    }
                 }
             },
             

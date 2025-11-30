@@ -5,7 +5,9 @@
 
 class OfflineSearchManager {
     constructor() {
-        this.isOnline = navigator.onLine; // 使用瀏覽器狀態作為初始值
+        this.browserOnline = navigator.onLine; // 瀏覽器網路狀態
+        this.serverOnline = false; // 伺服器連線狀態
+        this.isOnline = false; // 總體狀態（browserOnline && serverOnline）
         this.cachedData = null;
         this.cacheVersion = null;
         this.isInitialized = false;
@@ -58,6 +60,7 @@ class OfflineSearchManager {
         // 監聽瀏覽器的 online/offline 事件
         window.addEventListener('online', () => {
             console.log('[OfflineSearch] 瀏覽器回報網路已連線');
+            this.browserOnline = true;
             // 網路恢復時，重置重連延遲並立即重新建立 SSE 連線
             this.reconnectDelay = 1000;
             // 清除任何現有的重連計時器
@@ -65,22 +68,22 @@ class OfflineSearchManager {
                 clearTimeout(this.reconnectTimeout);
                 this.reconnectTimeout = null;
             }
-            // 重置狀態以確保能正確觸發 onOnline
-            this.isOnline = null;
+            // 立即嘗試連線伺服器
             this.connectSSE();
         });
         
         window.addEventListener('offline', () => {
             console.log('[OfflineSearch] 瀏覽器回報網路已斷線');
-            // 立即關閉 SSE 連線並更新狀態
+            this.browserOnline = false;
+            // 瀏覽器離線，立即顯示離線（不管伺服器狀態）
+            // 立即關閉 SSE 連線
             if (this.eventSource) {
                 this.eventSource.close();
                 this.eventSource = null;
             }
+            this.serverOnline = false;
             this.connectionConfirmed = false;
-            // 強制更新為離線狀態
-            this.isOnline = null; // 重置以繞過重複檢查
-            this.onOffline();
+            this.updateConnectionState();
         });
         
         // 監聽 Service Worker 訊息
@@ -137,7 +140,7 @@ class OfflineSearchManager {
             console.log('[OfflineSearch] SSE 連線已建立:', event.data);
             this.reconnectDelay = 1000;
             this.connectionConfirmed = true;
-            this.onOnline();
+            this.setServerOnline(true);
             // 開始心跳檢測
             this.startHeartbeat();
         });
@@ -156,7 +159,7 @@ class OfflineSearchManager {
                 if (!this.connectionConfirmed && this.eventSource && this.eventSource.readyState === EventSource.OPEN) {
                     console.log('[OfflineSearch] 伺服器未在預期時間內確認連線，視為已連線');
                     this.connectionConfirmed = true;
-                    this.onOnline();
+                    this.setServerOnline(true);
                     this.startHeartbeat();
                 }
             }, 3000);
@@ -168,7 +171,7 @@ class OfflineSearchManager {
             // 只有在已經確認過連線成功後，錯誤才代表斷線
             // 或者連線從未成功過且多次重試失敗
             if (this.connectionConfirmed || this.reconnectDelay > 4000) {
-                this.onOffline();
+                this.setServerOnline(false);
             }
             if (this.eventSource) {
                 this.eventSource.close();
@@ -282,29 +285,46 @@ class OfflineSearchManager {
     
     // ========== 事件處理 ==========
     
+    // 設定伺服器連線狀態
+    setServerOnline(online) {
+        console.log('[OfflineSearch] setServerOnline:', online);
+        this.serverOnline = online;
+        this.updateConnectionState();
+    }
+    
+    // 計算並更新總體連線狀態
+    // 在線條件：瀏覽器在線 AND 伺服器連線成功
+    // 離線條件：瀏覽器離線 OR 伺服器離線
+    updateConnectionState() {
+        const newOnlineState = this.browserOnline && this.serverOnline;
+        console.log('[OfflineSearch] updateConnectionState - 瀏覽器:', this.browserOnline, '伺服器:', this.serverOnline, '=> 總體:', newOnlineState);
+        
+        if (this.isOnline === newOnlineState) return; // 狀態沒變，不處理
+        
+        const wasOnline = this.isOnline;
+        this.isOnline = newOnlineState;
+        
+        if (newOnlineState) {
+            console.log('[OfflineSearch] 已連線（瀏覽器+伺服器都在線）');
+            this.updateConnectionStatus();
+            // 檢查是否需要更新快取
+            this.sendMessageToSW({ type: 'CHECK_CACHE_VERSION' });
+        } else {
+            console.log('[OfflineSearch] 已離線（瀏覽器或伺服器離線）');
+            this.updateConnectionStatus();
+            // 切換到離線搜尋模式
+            this.enableOfflineSearch();
+        }
+    }
+
     async onOnline() {
-        // 避免重複觸發
-        if (this.isOnline === true) return;
-        const wasOffline = this.isOnline === false;
-        
-        console.log('[OfflineSearch] 伺服器已連線');
-        this.isOnline = true;
-        this.updateConnectionStatus();
-        
-        // 檢查是否需要更新快取
-        this.sendMessageToSW({ type: 'CHECK_CACHE_VERSION' });
+        // 過時方法，保留相容性
+        this.setServerOnline(true);
     }
     
     async onOffline() {
-        // 避免重複觸發
-        if (this.isOnline === false) return;
-        
-        console.log('[OfflineSearch] 伺服器已離線');
-        this.isOnline = false;
-        this.updateConnectionStatus();
-        
-        // 切換到離線搜尋模式
-        this.enableOfflineSearch();
+        // 過時方法，保留相容性
+        this.setServerOnline(false);
     }
     
     onPrefetchStarted() {
