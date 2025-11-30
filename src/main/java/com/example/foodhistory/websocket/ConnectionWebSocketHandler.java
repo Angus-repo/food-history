@@ -1,6 +1,5 @@
 package com.example.foodhistory.websocket;
 
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.CloseStatus;
 import org.springframework.web.socket.TextMessage;
@@ -51,32 +50,6 @@ public class ConnectionWebSocketHandler extends TextWebSocketHandler {
     public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
         System.out.println("[WebSocket] 傳輸錯誤: " + session.getId() + ", 錯誤: " + exception.getMessage());
         sessions.remove(session);
-    }
-    
-    /**
-     * 定期發送心跳（每 20 秒）
-     * 確保連線保持活躍，並讓客戶端知道伺服器仍在線上
-     */
-    @Scheduled(fixedRate = 20000)
-    public void sendHeartbeat() {
-        String heartbeatMessage = "{\"type\":\"heartbeat\",\"timestamp\":" + System.currentTimeMillis() + "}";
-        TextMessage textMessage = new TextMessage(heartbeatMessage);
-        
-        List<WebSocketSession> deadSessions = new java.util.ArrayList<>();
-        
-        for (WebSocketSession session : sessions) {
-            if (session.isOpen()) {
-                try {
-                    session.sendMessage(textMessage);
-                } catch (IOException e) {
-                    deadSessions.add(session);
-                }
-            } else {
-                deadSessions.add(session);
-            }
-        }
-        
-        sessions.removeAll(deadSessions);
     }
     
     /**
