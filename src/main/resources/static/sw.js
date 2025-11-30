@@ -12,17 +12,23 @@ workbox.setConfig({ debug: false });
 // 快取名稱配置
 const CACHE_PREFIX = 'food-history';
 
-// 程式碼版本 - 更新 JS/CSS/HTML 等靜態資源時修改此版本
+// 程式碼版本 - 更新 JS/CSS 等靜態資源時修改此版本
 const CODE_VERSION = 'c14';
 
 // 資料版本 - 只有資料結構改變時才需要修改，一般不需要改
 const DATA_VERSION = 'd1';
 
+// HTML 版本 - HTML 頁面獨立版本，不跟著 CODE_VERSION，避免更新程式碼時清除 HTML 快取
+// 只有在 HTML 結構有重大變更時才需要更新此版本
+const HTML_VERSION = 'h1';
+
 // 程式碼相關快取（更新程式時會清除）
 const STATIC_CACHE = `${CACHE_PREFIX}-static-${CODE_VERSION}`;
-const HTML_CACHE = `${CACHE_PREFIX}-html-${CODE_VERSION}`;
 const FONTS_CACHE = `${CACHE_PREFIX}-fonts-${CODE_VERSION}`;
 const CDN_CACHE = `${CACHE_PREFIX}-cdn-${CODE_VERSION}`;
+
+// HTML 快取（獨立版本，更新程式碼時保留）
+const HTML_CACHE = `${CACHE_PREFIX}-html-${HTML_VERSION}`;
 
 // 資料相關快取（更新程式時保留）
 const OFFLINE_DATA_CACHE = `${CACHE_PREFIX}-offline-data-${DATA_VERSION}`;
@@ -235,22 +241,60 @@ self.addEventListener('activate', (event) => {
         IMAGE_CACHE
     ];
     
-    // 清理舊版本快取（只清理程式碼快取，保留資料快取）
-    event.waitUntil(
-        caches.keys().then((cacheNames) => {
-            return Promise.all(
-                cacheNames
-                    .filter((cacheName) => cacheName.startsWith(CACHE_PREFIX))
-                    .filter((cacheName) => !validCaches.includes(cacheName))
-                    .map((cacheName) => {
-                        console.log('[Service Worker] 刪除舊快取:', cacheName);
-                        return caches.delete(cacheName);
-                    })
-            );
-        })
-    );
+    // 遷移舊的 HTML 快取到新版本（如果有的話）
+    // 這確保用戶更新 Service Worker 後不會失去已快取的 HTML 頁面
+    const migrateHtmlCache = async () => {
+        const cacheNames = await caches.keys();
+        // 找到舊的 HTML 快取（格式：food-history-html-cXX）
+        const oldHtmlCaches = cacheNames.filter(name => 
+            name.startsWith(`${CACHE_PREFIX}-html-`) && name !== HTML_CACHE
+        );
+        
+        if (oldHtmlCaches.length > 0) {
+            console.log('[Service Worker] 發現舊的 HTML 快取，開始遷移:', oldHtmlCaches);
+            const newCache = await caches.open(HTML_CACHE);
+            
+            for (const oldCacheName of oldHtmlCaches) {
+                try {
+                    const oldCache = await caches.open(oldCacheName);
+                    const requests = await oldCache.keys();
+                    
+                    for (const request of requests) {
+                        // 檢查新快取中是否已有此項目
+                        const existingResponse = await newCache.match(request);
+                        if (!existingResponse) {
+                            const response = await oldCache.match(request);
+                            if (response) {
+                                await newCache.put(request, response);
+                                console.log('[Service Worker] 已遷移 HTML:', request.url);
+                            }
+                        }
+                    }
+                } catch (err) {
+                    console.warn('[Service Worker] 遷移 HTML 快取失敗:', oldCacheName, err);
+                }
+            }
+        }
+    };
     
-    return self.clients.claim();
+    // 清理舊版本快取（只清理程式碼快取，保留資料快取）
+    const cleanupOldCaches = async () => {
+        const cacheNames = await caches.keys();
+        const cachesToDelete = cacheNames
+            .filter((cacheName) => cacheName.startsWith(CACHE_PREFIX))
+            .filter((cacheName) => !validCaches.includes(cacheName));
+        
+        for (const cacheName of cachesToDelete) {
+            console.log('[Service Worker] 刪除舊快取:', cacheName);
+            await caches.delete(cacheName);
+        }
+    };
+    
+    event.waitUntil(
+        migrateHtmlCache()
+            .then(() => cleanupOldCaches())
+            .then(() => self.clients.claim())
+    );
 });
 
 // 監聽來自主執行緒的訊息
