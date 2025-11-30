@@ -12,18 +12,21 @@ class OfflineSearchManager {
         this.cacheVersion = null;
         this.isInitialized = false;
         this.prefetchProgress = 0;
-        this.eventSource = null;
+        this.websocket = null;
         this.reconnectTimeout = null;
-        this.heartbeatTimeout = null;
-        this.reconnectDelay = 1000;
-        this.maxReconnectDelay = 30000;
-        this.sseEndpoint = '/api/foods/connection-stream';
-        this.connectionConfirmed = false; // 是否已確認 SSE 連線成功
+        this.pingInterval = null;
+        this.pongTimeout = null;
+        this.wsEndpoint = null; // 會在 init 時設定
+        this.connectionConfirmed = false; // 是否已確認 WebSocket 連線成功
         
         this.init();
     }
     
     async init() {
+        // 設定 WebSocket 端點（自動判斷 ws 或 wss）
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        this.wsEndpoint = `${protocol}//${window.location.host}/ws/connection`;
+        
         // 註冊 Service Worker
         if ('serviceWorker' in navigator) {
             try {
@@ -54,33 +57,27 @@ class OfflineSearchManager {
             }
         }
         
-        // 使用 SSE 監測伺服器連線狀態
-        this.connectSSE();
+        // 使用 WebSocket 監測伺服器連線狀態
+        this.connectWebSocket();
         
         // 監聽瀏覽器的 online/offline 事件
         window.addEventListener('online', () => {
             console.log('[OfflineSearch] 瀏覽器回報網路已連線');
             this.browserOnline = true;
-            // 網路恢復時，重置重連延遲並立即重新建立 SSE 連線
-            this.reconnectDelay = 1000;
             // 清除任何現有的重連計時器
             if (this.reconnectTimeout) {
                 clearTimeout(this.reconnectTimeout);
                 this.reconnectTimeout = null;
             }
             // 立即嘗試連線伺服器
-            this.connectSSE();
+            this.connectWebSocket();
         });
         
         window.addEventListener('offline', () => {
             console.log('[OfflineSearch] 瀏覽器回報網路已斷線');
             this.browserOnline = false;
-            // 瀏覽器離線，立即顯示離線（不管伺服器狀態）
-            // 立即關閉 SSE 連線
-            if (this.eventSource) {
-                this.eventSource.close();
-                this.eventSource = null;
-            }
+            // 瀏覽器離線，立即關閉 WebSocket 連線
+            this.closeWebSocket();
             this.serverOnline = false;
             this.connectionConfirmed = false;
             this.updateConnectionState();
@@ -92,127 +89,145 @@ class OfflineSearchManager {
         // 頁面可見性變化時重新連線
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
-                if (!this.eventSource || this.eventSource.readyState === EventSource.CLOSED) {
-                    this.connectSSE();
+                if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
+                    this.connectWebSocket();
                 }
             }
         }, { passive: true });
     }
     
-    connectSSE() {
-        // 清理舊連線和心跳計時器
-        if (this.eventSource) {
-            this.eventSource.close();
+    closeWebSocket() {
+        // 清理 ping/pong 計時器
+        if (this.pingInterval) {
+            clearInterval(this.pingInterval);
+            this.pingInterval = null;
         }
+        if (this.pongTimeout) {
+            clearTimeout(this.pongTimeout);
+            this.pongTimeout = null;
+        }
+        if (this.websocket) {
+            this.websocket.close();
+            this.websocket = null;
+        }
+    }
+    
+    connectWebSocket() {
+        // 清理舊連線
+        this.closeWebSocket();
         
         if (this.reconnectTimeout) {
             clearTimeout(this.reconnectTimeout);
             this.reconnectTimeout = null;
         }
         
-        if (this.heartbeatTimeout) {
-            clearTimeout(this.heartbeatTimeout);
-            this.heartbeatTimeout = null;
-        }
-        
         // 如果瀏覽器報告離線，不嘗試連線
         if (!navigator.onLine) {
-            console.log('[OfflineSearch] 瀏覽器報告離線，跳過 SSE 連線');
+            console.log('[OfflineSearch] 瀏覽器報告離線，跳過 WebSocket 連線');
             this.browserOnline = false;
             this.serverOnline = false;
             this.updateConnectionState();
             return;
         }
         
-        // 先用簡單的 fetch 確認伺服器可達
-        console.log('[OfflineSearch] 正在檢查伺服器狀態...');
-        this.checkServerHealth().then(isHealthy => {
-            if (!isHealthy) {
-                console.log('[OfflineSearch] 伺服器無法連線，立即切換至離線模式');
-                // 立即顯示離線狀態
-                this.setServerOnline(false);
-                this.scheduleReconnect();
-                return;
-            }
-            
-            console.log('[OfflineSearch] 伺服器可達，正在建立 SSE 連線...');
-            this.connectionConfirmed = false;
+        console.log('[OfflineSearch] 正在建立 WebSocket 連線...', this.wsEndpoint);
+        this.connectionConfirmed = false;
+        
+        try {
+            this.websocket = new WebSocket(this.wsEndpoint);
+        } catch (error) {
+            console.log('[OfflineSearch] 無法建立 WebSocket 連線:', error);
+            this.setServerOnline(false);
+            this.scheduleReconnect();
+            return;
+        }
+        
+        // WebSocket 連線成功開啟
+        this.websocket.onopen = () => {
+            console.log('[OfflineSearch] WebSocket 連線已建立');
+            this.connectionConfirmed = true;
+            this.setServerOnline(true);
+            this.startPingInterval();
+        };
+        
+        // WebSocket 收到訊息
+        this.websocket.onmessage = (event) => {
+            const data = event.data;
+            console.log('[OfflineSearch] 收到訊息:', data);
             
             try {
-                this.eventSource = new EventSource(this.sseEndpoint);
-            } catch (error) {
-                console.log('[OfflineSearch] 無法建立 SSE 連線:', error);
-                this.setServerOnline(false);
-                this.scheduleReconnect();
-                return;
-            }
-            
-            // 連線成功（收到 connected 事件）
-            this.eventSource.addEventListener('connected', (event) => {
-                console.log('[OfflineSearch] SSE 連線已建立:', event.data);
-                this.reconnectDelay = 1000;
-                this.connectionConfirmed = true;
-                this.setServerOnline(true);
-                this.startHeartbeat();
-            });
-            
-            // 監聽心跳事件
-            this.eventSource.addEventListener('heartbeat', (event) => {
-                console.log('[OfflineSearch] 收到心跳');
-                this.resetHeartbeatTimeout();
-            });
-            
-            // 連線開啟
-            this.eventSource.onopen = () => {
-                console.log('[OfflineSearch] SSE 連線開啟，等待伺服器確認...');
-                setTimeout(() => {
-                    if (!this.connectionConfirmed && this.eventSource && this.eventSource.readyState === EventSource.OPEN) {
-                        console.log('[OfflineSearch] 伺服器未在預期時間內確認連線，視為已連線');
-                        this.connectionConfirmed = true;
-                        this.setServerOnline(true);
-                        this.startHeartbeat();
+                const message = JSON.parse(data);
+                
+                if (message.type === 'pong') {
+                    // 收到 pong，清除超時計時器
+                    if (this.pongTimeout) {
+                        clearTimeout(this.pongTimeout);
+                        this.pongTimeout = null;
                     }
-                }, 3000);
-            };
-            
-            // 連線錯誤 - 立即顯示離線狀態
-            this.eventSource.onerror = (error) => {
-                console.log('[OfflineSearch] SSE 連線錯誤，立即切換至離線模式');
-                // 立即顯示離線狀態
-                this.setServerOnline(false);
-                if (this.eventSource) {
-                    this.eventSource.close();
+                } else if (message.type === 'heartbeat') {
+                    // 伺服器心跳，表示連線正常
+                    console.log('[OfflineSearch] 收到伺服器心跳');
+                } else if (message.type === 'connected') {
+                    // 連線確認訊息
+                    console.log('[OfflineSearch] 收到連線確認');
+                } else if (message.type === 'data-updated') {
+                    // 資料更新通知
+                    console.log('[OfflineSearch] 收到資料更新通知');
+                    this.sendMessageToSW({ type: 'CHECK_CACHE_VERSION' });
                 }
-                this.connectionConfirmed = false;
-                this.scheduleReconnect();
-            };
-            
-            // 監聯資料更新事件
-            this.eventSource.addEventListener('data-updated', (event) => {
-                console.log('[OfflineSearch] 收到資料更新通知:', event.data);
-                this.sendMessageToSW({ type: 'CHECK_CACHE_VERSION' });
-            });
-        });
+            } catch (e) {
+                // 非 JSON 格式，可能是舊版訊息
+                if (data === 'pong') {
+                    if (this.pongTimeout) {
+                        clearTimeout(this.pongTimeout);
+                        this.pongTimeout = null;
+                    }
+                }
+            }
+        };
+        
+        // WebSocket 連線關閉 - 立即顯示離線狀態
+        this.websocket.onclose = (event) => {
+            console.log('[OfflineSearch] WebSocket 連線已關閉，code:', event.code, 'reason:', event.reason);
+            // 立即顯示離線狀態
+            this.setServerOnline(false);
+            this.connectionConfirmed = false;
+            // 清理 ping/pong 計時器
+            if (this.pingInterval) {
+                clearInterval(this.pingInterval);
+                this.pingInterval = null;
+            }
+            if (this.pongTimeout) {
+                clearTimeout(this.pongTimeout);
+                this.pongTimeout = null;
+            }
+            this.scheduleReconnect();
+        };
+        
+        // WebSocket 連線錯誤
+        this.websocket.onerror = (error) => {
+            console.log('[OfflineSearch] WebSocket 連線錯誤');
+            // onclose 會被觸發，所以這裡不需要額外處理
+        };
     }
     
-    // 檢查伺服器健康狀態
-    async checkServerHealth() {
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 5000);
-            
-            const response = await fetch('/api/foods/health', {
-                method: 'GET',
-                cache: 'no-store',
-                signal: controller.signal
-            });
-            
-            clearTimeout(timeoutId);
-            return response.ok;
-        } catch (error) {
-            console.log('[OfflineSearch] 伺服器健康檢查失敗:', error.message);
-            return false;
-        }
+    // 客戶端定期發送 ping 確認連線
+    startPingInterval() {
+        // 每 15 秒發送一次 ping
+        this.pingInterval = setInterval(() => {
+            if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+                console.log('[OfflineSearch] 發送 ping');
+                this.websocket.send(JSON.stringify({ type: 'ping' }));
+                
+                // 設定 5 秒超時等待 pong
+                this.pongTimeout = setTimeout(() => {
+                    console.log('[OfflineSearch] ping 超時未收到 pong，關閉連線');
+                    this.closeWebSocket();
+                    this.setServerOnline(false);
+                    this.scheduleReconnect();
+                }, 5000);
+            }
+        }, 15000);
     }
     
     scheduleReconnect() {
@@ -230,29 +245,8 @@ class OfflineSearchManager {
         
         this.reconnectTimeout = setTimeout(() => {
             this.reconnectTimeout = null;
-            this.connectSSE();
+            this.connectWebSocket();
         }, retryDelay);
-    }
-    
-    // 心跳機制 - 定期重新連線以防止連線被中間設備關閉
-    startHeartbeat() {
-        this.resetHeartbeatTimeout();
-    }
-    
-    resetHeartbeatTimeout() {
-        if (this.heartbeatTimeout) {
-            clearTimeout(this.heartbeatTimeout);
-        }
-        
-        // 如果 35 秒內沒有收到任何事件，認為連線已斷開
-        this.heartbeatTimeout = setTimeout(() => {
-            console.log('[OfflineSearch] 心跳超時，重新建立連線');
-            if (this.eventSource) {
-                this.eventSource.close();
-            }
-            // 不立即顯示離線，而是嘗試重連
-            this.connectSSE();
-        }, 35000);
     }
     
     onServiceWorkerReady() {

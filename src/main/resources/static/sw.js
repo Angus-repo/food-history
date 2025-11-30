@@ -11,7 +11,7 @@ workbox.setConfig({ debug: false });
 
 // 快取名稱配置
 const CACHE_PREFIX = 'food-history';
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v4';
 const OFFLINE_DATA_CACHE = `${CACHE_PREFIX}-offline-data-${CACHE_VERSION}`;
 const IMAGE_CACHE = `${CACHE_PREFIX}-images-${CACHE_VERSION}`;
 const STATIC_CACHE = `${CACHE_PREFIX}-static-${CACHE_VERSION}`;
