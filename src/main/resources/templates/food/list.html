@@ -37,8 +37,8 @@
             </div>
             <!-- 第二行：狀態指示器 -->
             <div class="header-row-2">
-                <!-- 連線狀態指示器 -->
-                <div id="connectionIndicator" class="connection-indicator online">
+                <!-- 連線狀態指示器（預設隱藏，WebSocket 確認連線後才顯示） -->
+                <div id="connectionIndicator" class="connection-indicator online" style="display: none;">
                     <i class="bi bi-wifi"></i> 線上
                 </div>
                 <!-- 快取狀態 -->
@@ -1749,7 +1749,7 @@
             },
             
             updateUI(isOnline) {
-                console.log('[Connection] updateUI 被呼叫, isOnline:', isOnline);
+                console.log('[Connection] updateUI 被呼叫, isOnline:', isOnline, 'connectionConfirmed:', this.connectionConfirmed);
                 const indicator = document.getElementById('connectionIndicator');
                 const banner = document.getElementById('offlineBanner');
                 const refreshCacheBtn = document.getElementById('refreshCacheBtn');
@@ -1757,14 +1757,22 @@
                 console.log('[Connection] indicator 元素:', indicator);
                 
                 if (indicator) {
-                    if (isOnline) {
-                        indicator.className = 'connection-indicator online';
-                        indicator.innerHTML = '<i class="bi bi-wifi"></i> 線上';
+                    // 只有在 WebSocket 已確認連線過後才顯示指示器
+                    if (this.connectionConfirmed || this.lastOnlineState !== null) {
+                        indicator.style.display = ''; // 顯示指示器
+                        if (isOnline) {
+                            indicator.className = 'connection-indicator online';
+                            indicator.innerHTML = '<i class="bi bi-wifi"></i> 線上';
+                        } else {
+                            indicator.className = 'connection-indicator offline';
+                            indicator.innerHTML = '<i class="bi bi-wifi-off"></i> 離線';
+                        }
+                        console.log('[Connection] indicator 已更新為:', isOnline ? '線上' : '離線');
                     } else {
-                        indicator.className = 'connection-indicator offline';
-                        indicator.innerHTML = '<i class="bi bi-wifi-off"></i> 離線';
+                        // WebSocket 尚未確認連線，保持隱藏
+                        indicator.style.display = 'none';
+                        console.log('[Connection] indicator 保持隱藏（等待 WebSocket 確認）');
                     }
-                    console.log('[Connection] indicator 已更新為:', isOnline ? '線上' : '離線');
                 } else {
                     console.warn('[Connection] 找不到 connectionIndicator 元素！');
                 }
@@ -1908,6 +1916,18 @@
         // 頁面載入時初始化
         document.addEventListener('DOMContentLoaded', () => {
             ConnectionManager.init();
+        });
+        
+        // 頁面離開時隱藏連線狀態指示器
+        window.addEventListener('beforeunload', () => {
+            const indicator = document.getElementById('connectionIndicator');
+            const banner = document.getElementById('offlineBanner');
+            if (indicator) {
+                indicator.style.display = 'none';
+            }
+            if (banner) {
+                banner.style.display = 'none';
+            }
         });
         
         // 動畫樣式
