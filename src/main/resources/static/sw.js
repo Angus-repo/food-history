@@ -13,7 +13,7 @@ workbox.setConfig({ debug: false });
 const CACHE_PREFIX = 'food-history';
 
 // 程式碼版本 - 更新 JS/CSS/HTML 等靜態資源時修改此版本
-const CODE_VERSION = 'c6';
+const CODE_VERSION = 'c7';
 
 // 資料版本 - 只有資料結構改變時才需要修改，一般不需要改
 const DATA_VERSION = 'd1';
@@ -437,6 +437,7 @@ async function checkCacheVersion(event) {
         
         // 獲取伺服器版本
         let serverVersion = null;
+        let fetchError = null;
         try {
             const serverResponse = await fetch('/api/foods/cache-version');
             if (serverResponse.ok) {
@@ -444,6 +445,7 @@ async function checkCacheVersion(event) {
             }
         } catch (err) {
             // 離線時無法獲取伺服器版本
+            fetchError = err.message;
         }
         
         const needsUpdate = serverVersion && localVersion && 
@@ -454,7 +456,10 @@ async function checkCacheVersion(event) {
             localVersion,
             serverVersion,
             needsUpdate,
-            isOnline: !!serverVersion
+            // isOnline 只表示 Service Worker 能否成功 fetch，不代表真正的連線狀態
+            // 真正的連線狀態由頁面上的 ConnectionManager 管理
+            isOnline: !!serverVersion,
+            fetchError
         });
         
     } catch (error) {

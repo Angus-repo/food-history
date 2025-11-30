@@ -186,7 +186,15 @@ class OfflineSearchManager {
     }
     
     onCacheVersionInfo(data) {
-        console.log('[OfflineSearch] 快取版本資訊:', data);
+        // 注意：data.isOnline 是 Service Worker 判斷的，可能不準確
+        // 我們應該使用 this.isOnline（由 ConnectionManager 透過事件更新）
+        console.log('[OfflineSearch] 快取版本資訊:', {
+            localVersion: data.localVersion,
+            serverVersion: data.serverVersion,
+            needsUpdate: data.needsUpdate,
+            swReportsOnline: data.isOnline,  // SW 回報的狀態（僅供參考）
+            managerIsOnline: this.isOnline   // ConnectionManager 維護的狀態
+        });
         
         if (data.needsUpdate) {
             console.log('[OfflineSearch] 需要更新快取');
