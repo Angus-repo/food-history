@@ -1496,12 +1496,18 @@
                 const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
                 this.wsEndpoint = `${protocol}//${window.location.host}/ws/connection`;
                 
-                // 初始狀態：瀏覽器在線但伺服器還未確認，顯示離線
+                // 初始狀態：瀏覽器在線但伺服器還未確認
                 this.browserOnline = navigator.onLine;
                 this.serverOnline = false;
-                // 初始顯示離線，等待 WebSocket 確認伺服器連線
-                this.updateUI(false);
-                console.log('[Connection] 初始化 - 瀏覽器:', this.browserOnline, '伺服器:', this.serverOnline);
+                
+                // 初始不顯示離線狀態，等待 WebSocket 確認
+                // 延遲 500ms 後如果還沒連線才顯示離線
+                this.offlineDelayTimer = setTimeout(() => {
+                    if (!this.serverOnline) {
+                        this.updateUI(false);
+                    }
+                }, 500);
+                console.log('[Connection] 初始化 - 瀏覽器:', this.browserOnline, '伺服器:', this.serverOnline, '（延遲顯示離線狀態）');
                 
                 // 使用 WebSocket 建立持久連線
                 this.connectWebSocket();
@@ -1704,6 +1710,13 @@
             setServerOnline(online) {
                 console.log('[Connection] setServerOnline:', online);
                 this.serverOnline = online;
+                
+                // 清除延遲計時器
+                if (this.offlineDelayTimer) {
+                    clearTimeout(this.offlineDelayTimer);
+                    this.offlineDelayTimer = null;
+                }
+                
                 this.updateConnectionState();
             },
             
