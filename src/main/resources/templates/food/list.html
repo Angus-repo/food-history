@@ -1328,6 +1328,20 @@
             color: var(--warning-700, #a16207);
         }
         
+        .connection-indicator.checking {
+            background: var(--info-100, #e0f2fe);
+            color: var(--info-700, #0369a1);
+        }
+        
+        .connection-indicator .spin {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
         /* 離線橫幅 - 固定在頁面頂部 */
         .offline-banner {
             position: fixed;

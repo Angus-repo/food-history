@@ -141,21 +141,29 @@ class ConnectionManager {
                 // 頁面回到前景時，先快速檢查伺服器狀態
                 // 這樣可以避免因為背景閒置導致 WebSocket 斷線而誤判為離線
                 if (navigator.onLine) {
+                    // 如果 WebSocket 已斷開，顯示「重新檢查連線中」
+                    const needsRecheck = !this.websocket || this.websocket.readyState !== WebSocket.OPEN;
+                    if (needsRecheck) {
+                        this.showCheckingStatus();
+                    }
+                    
                     this.quickServerCheck().then(serverReachable => {
                         if (serverReachable) {
                             // 伺服器可達，如果 WebSocket 已斷開則重新連線
-                            if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
+                            if (needsRecheck) {
                                 // 先更新狀態為線上，避免短暫顯示離線
                                 if (!this.serverOnline) {
                                     console.log('[Connection] 頁面回到前景，伺服器可達，更新為線上狀態');
                                     this.connectionConfirmed = true;
                                     this.setServerOnline(true);
                                 }
+                                this.hideCheckingStatus();
                                 this.connectWebSocket();
                             }
                         } else {
                             // 伺服器不可達，確認離線狀態
                             console.log('[Connection] 頁面回到前景，伺服器不可達');
+                            this.hideCheckingStatus();
                             this.setServerOnline(false);
                             this.scheduleReconnect();
                         }
@@ -494,6 +502,29 @@ class ConnectionManager {
             notification.style.animation = 'slideUp 0.3s ease';
             setTimeout(() => notification.remove(), 300);
         }, 3000);
+    }
+    
+    /**
+     * 顯示「重新檢查連線中」的狀態
+     * 當手機閒置過久回到頁面時使用
+     */
+    showCheckingStatus() {
+        const indicator = document.getElementById('connectionIndicator');
+        if (indicator) {
+            indicator.style.display = '';
+            indicator.className = 'connection-indicator checking';
+            indicator.innerHTML = '<i class="bi bi-arrow-repeat spin"></i> 檢查連線中...';
+            console.log('[Connection] 顯示檢查連線中狀態');
+        }
+    }
+    
+    /**
+     * 隱藏「重新檢查連線中」的狀態
+     */
+    hideCheckingStatus() {
+        // 檢查狀態會在 updateUI 時被覆蓋，所以這裡不需要特別處理
+        // 但如果需要立即隱藏，可以呼叫 updateUI
+        console.log('[Connection] 隱藏檢查連線中狀態');
     }
     
     // 取得當前連線狀態
