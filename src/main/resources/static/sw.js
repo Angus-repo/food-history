@@ -13,7 +13,7 @@ workbox.setConfig({ debug: false });
 const CACHE_PREFIX = 'food-history';
 
 // 程式碼版本 - 更新 JS/CSS/HTML 等靜態資源時修改此版本
-const CODE_VERSION = 'c7';
+const CODE_VERSION = 'c8';
 
 // 資料版本 - 只有資料結構改變時才需要修改，一般不需要改
 const DATA_VERSION = 'd1';
