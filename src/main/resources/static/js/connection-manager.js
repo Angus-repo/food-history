@@ -78,10 +78,21 @@ class ConnectionManager {
         // 更新瀏覽器狀態
         this.browserOnline = navigator.onLine;
         
-        console.log('[Connection] 初始化 - 瀏覽器:', this.browserOnline, '伺服器:', this.serverOnline, '已確認:', this.connectionConfirmed);
+        console.log('[Connection] 初始化 - 瀏覽器:', this.browserOnline, '伺服器:', this.serverOnline, '已確認:', this.connectionConfirmed, 'lastOnlineState:', this.lastOnlineState);
+        
+        // 如果瀏覽器報告離線，立即顯示離線 UI（不需要等待 WebSocket）
+        if (!this.browserOnline) {
+            console.log('[Connection] 瀏覽器報告離線，立即顯示離線 UI');
+            this.serverOnline = false;
+            this.lastOnlineState = false;
+            this.connectionConfirmed = true; // 標記為已確認（離線狀態）
+            this.updateUI(false);
+            this.saveStateToStorage();
+            return; // 不嘗試建立 WebSocket
+        }
         
         // 如果有先前儲存的狀態，立即顯示 UI（不等待 WebSocket）
-        if (this.connectionConfirmed && this.lastOnlineState !== null) {
+        if (this.lastOnlineState !== null) {
             const currentState = this.browserOnline && this.serverOnline;
             console.log('[Connection] 使用儲存的狀態立即更新 UI:', currentState);
             this.updateUI(currentState);
@@ -161,12 +172,21 @@ class ConnectionManager {
             console.log('[Connection] 瀏覽器報告離線，跳過 WebSocket 連線');
             this.browserOnline = false;
             this.serverOnline = false;
+            // 離線時保持 connectionConfirmed 為 true，讓 UI 能顯示離線狀態
+            if (this.lastOnlineState !== null) {
+                this.connectionConfirmed = true;
+            }
             this.updateConnectionState();
+            this.saveStateToStorage();
             return;
         }
         
         console.log('[Connection] 正在建立 WebSocket 連線...', this.wsEndpoint);
-        this.connectionConfirmed = false;
+        // 只有在瀏覽器在線時才重設 connectionConfirmed，等待 WebSocket 確認
+        // 但如果已經有儲存的離線狀態，保持 UI 可見
+        if (this.lastOnlineState === null) {
+            this.connectionConfirmed = false;
+        }
         
         try {
             this.websocket = new WebSocket(this.wsEndpoint);
@@ -337,13 +357,8 @@ class ConnectionManager {
         
         this.lastOnlineState = isOnline;
         
-        // 更新 UI
+        // 更新 UI（updateUI 內部會呼叫 onUpdateUI 回調）
         this.updateUI(isOnline);
-        
-        // 呼叫自訂 UI 更新
-        if (this.onUpdateUI) {
-            this.onUpdateUI(isOnline, this.connectionConfirmed);
-        }
         
         // 發送事件通知其他模組
         window.dispatchEvent(new CustomEvent('connectionStateChanged', {
@@ -370,12 +385,15 @@ class ConnectionManager {
     }
     
     updateUI(isOnline) {
-        console.log('[Connection] updateUI 被呼叫, isOnline:', isOnline, 'connectionConfirmed:', this.connectionConfirmed);
+        console.log('[Connection] updateUI 被呼叫, isOnline:', isOnline, 'connectionConfirmed:', this.connectionConfirmed, 'lastOnlineState:', this.lastOnlineState);
         const indicator = document.getElementById('connectionIndicator');
         const banner = document.getElementById('offlineBanner');
         
+        // 判斷是否應該顯示連線狀態 UI
+        const shouldShowUI = this.connectionConfirmed || this.lastOnlineState !== null;
+        
         if (indicator) {
-            if (this.connectionConfirmed || this.lastOnlineState !== null) {
+            if (shouldShowUI) {
                 indicator.style.display = '';
                 if (isOnline) {
                     indicator.className = 'connection-indicator online';
@@ -397,10 +415,15 @@ class ConnectionManager {
             if (isOnline) {
                 banner.style.display = 'none';
                 document.body.classList.remove('offline-mode');
-            } else {
+            } else if (shouldShowUI) {
                 banner.style.display = 'block';
                 document.body.classList.add('offline-mode');
             }
+        }
+        
+        // 呼叫自訂 UI 更新回調（讓各頁面可以自訂額外的 UI 變化）
+        if (this.onUpdateUI && shouldShowUI) {
+            this.onUpdateUI(isOnline, this.connectionConfirmed);
         }
     }
     
