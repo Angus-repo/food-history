@@ -567,7 +567,9 @@ class OfflineSearchManager {
         if (searchForm && !searchForm.dataset.offlineEnabled) {
             searchForm.dataset.offlineEnabled = 'true';
             searchForm.addEventListener('submit', (e) => {
-                if (!this.isOnline) {
+                // 只有在瀏覽器確定離線且伺服器也離線時才攔截
+                const browserOffline = !navigator.onLine;
+                if (browserOffline && !this.isOnline) {
                     e.preventDefault();
                     const keyword = searchForm.querySelector('input[name="keyword"]').value;
                     this.searchOffline(keyword);
@@ -893,11 +895,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const searchForm = document.querySelector('.search-container form');
     if (searchForm) {
         searchForm.addEventListener('submit', function(e) {
-            if (offlineSearchManager && !offlineSearchManager.isOnline) {
+            // 只有在瀏覽器確定離線且 WebSocket 也離線時才攔截
+            // 如果瀏覽器認為在線，讓表單正常提交到伺服器
+            const browserOffline = !navigator.onLine;
+            const serverOffline = offlineSearchManager && !offlineSearchManager.isOnline;
+            
+            if (browserOffline && serverOffline) {
                 e.preventDefault();
                 const keyword = this.querySelector('input[name="keyword"]').value;
                 offlineSearchManager.searchOffline(keyword);
             }
+            // 否則讓表單正常提交
         });
     }
     
@@ -1006,6 +1014,8 @@ offlineStyles.textContent = `
     .prefetch-message {
         font-size: 0.875rem;
         color: var(--secondary-700, #374151);
+        text-align: center;
+        width: 100%;
     }
     
     .prefetch-progress-bar {
