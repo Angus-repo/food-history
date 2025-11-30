@@ -12,6 +12,7 @@ class OfflineSearchManager {
         this.prefetchProgress = 0;
         this.eventSource = null;
         this.reconnectTimeout = null;
+        this.heartbeatTimeout = null;
         this.reconnectDelay = 1000;
         this.maxReconnectDelay = 30000;
         this.sseEndpoint = '/api/foods/connection-stream';
@@ -57,7 +58,15 @@ class OfflineSearchManager {
         // 監聽瀏覽器的 online/offline 事件
         window.addEventListener('online', () => {
             console.log('[OfflineSearch] 瀏覽器回報網路已連線');
-            // 網路恢復時，重新建立 SSE 連線
+            // 網路恢復時，重置重連延遲並立即重新建立 SSE 連線
+            this.reconnectDelay = 1000;
+            // 清除任何現有的重連計時器
+            if (this.reconnectTimeout) {
+                clearTimeout(this.reconnectTimeout);
+                this.reconnectTimeout = null;
+            }
+            // 重置狀態以確保能正確觸發 onOnline
+            this.isOnline = null;
             this.connectSSE();
         });
         
@@ -88,7 +97,7 @@ class OfflineSearchManager {
     }
     
     connectSSE() {
-        // 清理舊連線
+        // 清理舊連線和心跳計時器
         if (this.eventSource) {
             this.eventSource.close();
         }
@@ -96,6 +105,18 @@ class OfflineSearchManager {
         if (this.reconnectTimeout) {
             clearTimeout(this.reconnectTimeout);
             this.reconnectTimeout = null;
+        }
+        
+        if (this.heartbeatTimeout) {
+            clearTimeout(this.heartbeatTimeout);
+            this.heartbeatTimeout = null;
+        }
+        
+        // 如果瀏覽器報告離線，不嘗試連線
+        if (!navigator.onLine) {
+            console.log('[OfflineSearch] 瀏覽器報告離線，跳過 SSE 連線');
+            this.onOffline();
+            return;
         }
         
         console.log('[OfflineSearch] 正在建立 SSE 連線...');
@@ -117,6 +138,14 @@ class OfflineSearchManager {
             this.reconnectDelay = 1000;
             this.connectionConfirmed = true;
             this.onOnline();
+            // 開始心跳檢測
+            this.startHeartbeat();
+        });
+        
+        // 監聽心跳事件
+        this.eventSource.addEventListener('heartbeat', (event) => {
+            console.log('[OfflineSearch] 收到心跳');
+            this.resetHeartbeatTimeout();
         });
         
         // 連線開啟 - 此時還不能確認伺服器真的在線，要等 connected 事件
@@ -128,6 +157,7 @@ class OfflineSearchManager {
                     console.log('[OfflineSearch] 伺服器未在預期時間內確認連線，視為已連線');
                     this.connectionConfirmed = true;
                     this.onOnline();
+                    this.startHeartbeat();
                 }
             }, 3000);
         };
@@ -140,7 +170,9 @@ class OfflineSearchManager {
             if (this.connectionConfirmed || this.reconnectDelay > 4000) {
                 this.onOffline();
             }
-            this.eventSource.close();
+            if (this.eventSource) {
+                this.eventSource.close();
+            }
             this.connectionConfirmed = false;
             this.scheduleReconnect();
         };
@@ -155,6 +187,12 @@ class OfflineSearchManager {
     scheduleReconnect() {
         if (this.reconnectTimeout) return;
         
+        // 如果瀏覽器報告離線，不排程重連
+        if (!navigator.onLine) {
+            console.log('[OfflineSearch] 瀏覽器報告離線，暫不排程重連');
+            return;
+        }
+        
         console.log(`[OfflineSearch] 將在 ${this.reconnectDelay / 1000} 秒後嘗試重新連線...`);
         
         this.reconnectTimeout = setTimeout(() => {
@@ -163,6 +201,27 @@ class OfflineSearchManager {
         }, this.reconnectDelay);
         
         this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay);
+    }
+    
+    // 心跳機制 - 定期重新連線以防止連線被中間設備關閉
+    startHeartbeat() {
+        this.resetHeartbeatTimeout();
+    }
+    
+    resetHeartbeatTimeout() {
+        if (this.heartbeatTimeout) {
+            clearTimeout(this.heartbeatTimeout);
+        }
+        
+        // 如果 35 秒內沒有收到任何事件，認為連線已斷開
+        this.heartbeatTimeout = setTimeout(() => {
+            console.log('[OfflineSearch] 心跳超時，重新建立連線');
+            if (this.eventSource) {
+                this.eventSource.close();
+            }
+            // 不立即顯示離線，而是嘗試重連
+            this.connectSSE();
+        }, 35000);
     }
     
     onServiceWorkerReady() {

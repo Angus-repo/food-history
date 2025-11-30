@@ -43,8 +43,8 @@ public class OfflineCacheController {
      */
     @GetMapping(value = "/connection-stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public SseEmitter connectionStream() {
-        // 設定 30 分鐘超時（0 表示無限）
-        SseEmitter emitter = new SseEmitter(30 * 60 * 1000L);
+        // 設定 0 表示無超時（由心跳機制維護連線）
+        SseEmitter emitter = new SseEmitter(0L);
         
         emitters.add(emitter);
         
@@ -57,10 +57,29 @@ public class OfflineCacheController {
             emitter.completeWithError(e);
         }
         
+        // 啟動心跳任務 - 每 25 秒發送一次心跳
+        java.util.concurrent.ScheduledExecutorService scheduler = 
+            java.util.concurrent.Executors.newSingleThreadScheduledExecutor();
+        java.util.concurrent.ScheduledFuture<?> heartbeatTask = scheduler.scheduleAtFixedRate(() -> {
+            try {
+                emitter.send(SseEmitter.event()
+                        .name("heartbeat")
+                        .data("{\"timestamp\":" + System.currentTimeMillis() + "}"));
+            } catch (IOException e) {
+                // 連線已斷開，取消心跳任務
+                scheduler.shutdown();
+            }
+        }, 25, 25, java.util.concurrent.TimeUnit.SECONDS);
+        
         // 設定完成、超時、錯誤時的清理
-        emitter.onCompletion(() -> emitters.remove(emitter));
-        emitter.onTimeout(() -> emitters.remove(emitter));
-        emitter.onError(e -> emitters.remove(emitter));
+        Runnable cleanup = () -> {
+            emitters.remove(emitter);
+            heartbeatTask.cancel(true);
+            scheduler.shutdown();
+        };
+        emitter.onCompletion(cleanup);
+        emitter.onTimeout(cleanup);
+        emitter.onError(e -> cleanup.run());
         
         return emitter;
     }

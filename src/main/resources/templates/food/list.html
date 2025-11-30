@@ -1504,7 +1504,15 @@
                 // 監聽瀏覽器的 online/offline 事件
                 window.addEventListener('online', () => {
                     console.log('[Connection] 瀏覽器回報網路已連線');
-                    // 網路恢復時，重新建立 SSE 連線
+                    // 網路恢復時，重置重連延遲並立即重新建立 SSE 連線
+                    this.reconnectDelay = 1000;
+                    // 清除任何現有的重連計時器
+                    if (this.reconnectTimeout) {
+                        clearTimeout(this.reconnectTimeout);
+                        this.reconnectTimeout = null;
+                    }
+                    // 重置狀態以確保能正確觸發 handleOnline
+                    this.lastOnlineState = null;
                     this.connectSSE();
                 });
                 
@@ -1536,7 +1544,7 @@
             },
             
             connectSSE() {
-                // 清理舊連線
+                // 清理舊連線和心跳計時器
                 if (this.eventSource) {
                     this.eventSource.close();
                 }
@@ -1544,6 +1552,18 @@
                 if (this.reconnectTimeout) {
                     clearTimeout(this.reconnectTimeout);
                     this.reconnectTimeout = null;
+                }
+                
+                if (this.heartbeatTimeout) {
+                    clearTimeout(this.heartbeatTimeout);
+                    this.heartbeatTimeout = null;
+                }
+                
+                // 如果瀏覽器報告離線，不嘗試連線
+                if (!navigator.onLine) {
+                    console.log('[Connection] 瀏覽器報告離線，跳過 SSE 連線');
+                    this.handleOffline();
+                    return;
                 }
                 
                 console.log('[Connection] 正在建立 SSE 連線...');
@@ -1565,6 +1585,14 @@
                     this.reconnectDelay = 1000; // 重置重連延遲
                     this.connectionConfirmed = true;
                     this.handleOnline();
+                    // 開始心跳檢測
+                    this.startHeartbeat();
+                });
+                
+                // 監聽心跳事件
+                this.eventSource.addEventListener('heartbeat', (event) => {
+                    console.log('[Connection] 收到心跳');
+                    this.resetHeartbeatTimeout();
                 });
                 
                 // 連線開啟 - 此時還不能確認伺服器真的在線，要等 connected 事件
@@ -1576,6 +1604,7 @@
                             console.log('[Connection] 伺服器未在預期時間內確認連線，視為已連線');
                             this.connectionConfirmed = true;
                             this.handleOnline();
+                            this.startHeartbeat();
                         }
                     }, 3000);
                 };
@@ -1588,7 +1617,9 @@
                     if (this.connectionConfirmed || this.reconnectDelay > 4000) {
                         this.handleOffline();
                     }
-                    this.eventSource.close();
+                    if (this.eventSource) {
+                        this.eventSource.close();
+                    }
                     this.connectionConfirmed = false;
                     this.scheduleReconnect();
                 };
@@ -1608,6 +1639,12 @@
             scheduleReconnect() {
                 if (this.reconnectTimeout) return; // 已經排程中
                 
+                // 如果瀏覽器報告離線，不排程重連
+                if (!navigator.onLine) {
+                    console.log('[Connection] 瀏覽器報告離線，暫不排程重連');
+                    return;
+                }
+                
                 console.log(`[Connection] 將在 ${this.reconnectDelay / 1000} 秒後嘗試重新連線...`);
                 
                 this.reconnectTimeout = setTimeout(() => {
@@ -1617,6 +1654,29 @@
                 
                 // 指數退避，增加重連延遲
                 this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay);
+            },
+            
+            // 心跳機制 - 定期重新連線以防止連線被中間設備關閉
+            startHeartbeat() {
+                // 每 25 秒檢查一次（比一般代理超時 30 秒短）
+                this.heartbeatInterval = 25000;
+                this.resetHeartbeatTimeout();
+            },
+            
+            resetHeartbeatTimeout() {
+                if (this.heartbeatTimeout) {
+                    clearTimeout(this.heartbeatTimeout);
+                }
+                
+                // 如果 35 秒內沒有收到任何事件，認為連線已斷開
+                this.heartbeatTimeout = setTimeout(() => {
+                    console.log('[Connection] 心跳超時，重新建立連線');
+                    if (this.eventSource) {
+                        this.eventSource.close();
+                    }
+                    // 不立即顯示離線，而是嘗試重連
+                    this.connectSSE();
+                }, 35000);
             },
             
             handleOnline() {
