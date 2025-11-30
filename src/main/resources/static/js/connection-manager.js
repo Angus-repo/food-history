@@ -92,13 +92,23 @@ class ConnectionManager {
         
         // 監聽瀏覽器的 online/offline 事件
         window.addEventListener('online', () => {
-            console.log('[Connection] 瀏覽器回報網路已連線');
+            console.log('[Connection] 瀏覽器回報網路已連線，立即檢查伺服器狀態');
             this.browserOnline = true;
             if (this.reconnectTimeout) {
                 clearTimeout(this.reconnectTimeout);
                 this.reconnectTimeout = null;
             }
-            this.connectWebSocket();
+            // 立即用 HTTP 快速檢查伺服器是否可達，再建立 WebSocket
+            this.quickServerCheck().then(serverReachable => {
+                if (serverReachable) {
+                    console.log('[Connection] 伺服器可達，建立 WebSocket 連線');
+                    this.connectWebSocket();
+                } else {
+                    console.log('[Connection] 伺服器不可達，稍後重試');
+                    this.setServerOnline(false);
+                    this.scheduleReconnect();
+                }
+            });
         });
         
         window.addEventListener('offline', () => {
@@ -278,6 +288,34 @@ class ConnectionManager {
             this.reconnectTimeout = null;
             this.connectWebSocket();
         }, retryDelay);
+    }
+    
+    /**
+     * 快速檢查伺服器是否可達（使用 HTTP HEAD 請求）
+     * 比建立 WebSocket 連線更快，可以立即知道伺服器狀態
+     */
+    async quickServerCheck() {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 秒超時
+            
+            const response = await fetch('/api/foods/health', {
+                method: 'HEAD',
+                cache: 'no-store',
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            console.log('[Connection] 快速檢查結果: 伺服器可達, status:', response.status);
+            return response.ok;
+        } catch (error) {
+            if (error.name === 'AbortError') {
+                console.log('[Connection] 快速檢查超時');
+            } else {
+                console.log('[Connection] 快速檢查失敗:', error.message);
+            }
+            return false;
+        }
     }
     
     setServerOnline(online) {
