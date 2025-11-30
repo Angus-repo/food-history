@@ -37,6 +37,17 @@ public class OfflineCacheController {
     private final List<SseEmitter> emitters = new CopyOnWriteArrayList<>();
     
     /**
+     * 健康檢查端點 - 用於快速確認伺服器是否可達
+     */
+    @GetMapping("/health")
+    public ResponseEntity<Map<String, Object>> health() {
+        Map<String, Object> response = new HashMap<>();
+        response.put("status", "ok");
+        response.put("timestamp", System.currentTimeMillis());
+        return ResponseEntity.ok(response);
+    }
+    
+    /**
      * SSE 連線端點 - 用於即時監測伺服器連線狀態
      * 當連線建立時，前端就知道 server 在線
      * 當連線斷開時，前端就知道 server 離線

@@ -118,73 +118,101 @@ class OfflineSearchManager {
         // 如果瀏覽器報告離線，不嘗試連線
         if (!navigator.onLine) {
             console.log('[OfflineSearch] 瀏覽器報告離線，跳過 SSE 連線');
-            this.onOffline();
+            this.browserOnline = false;
+            this.serverOnline = false;
+            this.updateConnectionState();
             return;
         }
         
-        console.log('[OfflineSearch] 正在建立 SSE 連線...');
-        this.connectionConfirmed = false;
-        
-        try {
-            this.eventSource = new EventSource(this.sseEndpoint);
-        } catch (error) {
-            // EventSource 建立失敗（可能是離線）
-            console.log('[OfflineSearch] 無法建立 SSE 連線:', error);
-            this.onOffline();
-            this.scheduleReconnect();
-            return;
-        }
-        
-        // 連線成功（收到 connected 事件）
-        this.eventSource.addEventListener('connected', (event) => {
-            console.log('[OfflineSearch] SSE 連線已建立:', event.data);
-            this.reconnectDelay = 1000;
-            this.connectionConfirmed = true;
-            this.setServerOnline(true);
-            // 開始心跳檢測
-            this.startHeartbeat();
-        });
-        
-        // 監聽心跳事件
-        this.eventSource.addEventListener('heartbeat', (event) => {
-            console.log('[OfflineSearch] 收到心跳');
-            this.resetHeartbeatTimeout();
-        });
-        
-        // 連線開啟 - 此時還不能確認伺服器真的在線，要等 connected 事件
-        this.eventSource.onopen = () => {
-            console.log('[OfflineSearch] SSE 連線開啟，等待伺服器確認...');
-            // 給伺服器 3 秒時間發送 connected 事件
-            setTimeout(() => {
-                if (!this.connectionConfirmed && this.eventSource && this.eventSource.readyState === EventSource.OPEN) {
-                    console.log('[OfflineSearch] 伺服器未在預期時間內確認連線，視為已連線');
-                    this.connectionConfirmed = true;
-                    this.setServerOnline(true);
-                    this.startHeartbeat();
-                }
-            }, 3000);
-        };
-        
-        // 連線錯誤
-        this.eventSource.onerror = (error) => {
-            console.log('[OfflineSearch] SSE 連線錯誤');
-            // 只有在已經確認過連線成功後，錯誤才代表斷線
-            // 或者連線從未成功過且多次重試失敗
-            if (this.connectionConfirmed || this.reconnectDelay > 4000) {
+        // 先用簡單的 fetch 確認伺服器可達
+        console.log('[OfflineSearch] 正在檢查伺服器狀態...');
+        this.checkServerHealth().then(isHealthy => {
+            if (!isHealthy) {
+                console.log('[OfflineSearch] 伺服器無法連線，立即切換至離線模式');
+                // 立即顯示離線狀態
                 this.setServerOnline(false);
+                this.scheduleReconnect();
+                return;
             }
-            if (this.eventSource) {
-                this.eventSource.close();
-            }
+            
+            console.log('[OfflineSearch] 伺服器可達，正在建立 SSE 連線...');
             this.connectionConfirmed = false;
-            this.scheduleReconnect();
-        };
-        
-        // 監聽資料更新事件
-        this.eventSource.addEventListener('data-updated', (event) => {
-            console.log('[OfflineSearch] 收到資料更新通知:', event.data);
-            this.sendMessageToSW({ type: 'CHECK_CACHE_VERSION' });
+            
+            try {
+                this.eventSource = new EventSource(this.sseEndpoint);
+            } catch (error) {
+                console.log('[OfflineSearch] 無法建立 SSE 連線:', error);
+                this.setServerOnline(false);
+                this.scheduleReconnect();
+                return;
+            }
+            
+            // 連線成功（收到 connected 事件）
+            this.eventSource.addEventListener('connected', (event) => {
+                console.log('[OfflineSearch] SSE 連線已建立:', event.data);
+                this.reconnectDelay = 1000;
+                this.connectionConfirmed = true;
+                this.setServerOnline(true);
+                this.startHeartbeat();
+            });
+            
+            // 監聽心跳事件
+            this.eventSource.addEventListener('heartbeat', (event) => {
+                console.log('[OfflineSearch] 收到心跳');
+                this.resetHeartbeatTimeout();
+            });
+            
+            // 連線開啟
+            this.eventSource.onopen = () => {
+                console.log('[OfflineSearch] SSE 連線開啟，等待伺服器確認...');
+                setTimeout(() => {
+                    if (!this.connectionConfirmed && this.eventSource && this.eventSource.readyState === EventSource.OPEN) {
+                        console.log('[OfflineSearch] 伺服器未在預期時間內確認連線，視為已連線');
+                        this.connectionConfirmed = true;
+                        this.setServerOnline(true);
+                        this.startHeartbeat();
+                    }
+                }, 3000);
+            };
+            
+            // 連線錯誤 - 立即顯示離線狀態
+            this.eventSource.onerror = (error) => {
+                console.log('[OfflineSearch] SSE 連線錯誤，立即切換至離線模式');
+                // 立即顯示離線狀態
+                this.setServerOnline(false);
+                if (this.eventSource) {
+                    this.eventSource.close();
+                }
+                this.connectionConfirmed = false;
+                this.scheduleReconnect();
+            };
+            
+            // 監聯資料更新事件
+            this.eventSource.addEventListener('data-updated', (event) => {
+                console.log('[OfflineSearch] 收到資料更新通知:', event.data);
+                this.sendMessageToSW({ type: 'CHECK_CACHE_VERSION' });
+            });
         });
+    }
+    
+    // 檢查伺服器健康狀態
+    async checkServerHealth() {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000);
+            
+            const response = await fetch('/api/foods/health', {
+                method: 'GET',
+                cache: 'no-store',
+                signal: controller.signal
+            });
+            
+            clearTimeout(timeoutId);
+            return response.ok;
+        } catch (error) {
+            console.log('[OfflineSearch] 伺服器健康檢查失敗:', error.message);
+            return false;
+        }
     }
     
     scheduleReconnect() {
@@ -196,14 +224,14 @@ class OfflineSearchManager {
             return;
         }
         
-        console.log(`[OfflineSearch] 將在 ${this.reconnectDelay / 1000} 秒後嘗試重新連線...`);
+        // 固定 3 秒重試間隔
+        const retryDelay = 3000;
+        console.log(`[OfflineSearch] 將在 ${retryDelay / 1000} 秒後嘗試重新連線...`);
         
         this.reconnectTimeout = setTimeout(() => {
             this.reconnectTimeout = null;
             this.connectSSE();
-        }, this.reconnectDelay);
-        
-        this.reconnectDelay = Math.min(this.reconnectDelay * 2, this.maxReconnectDelay);
+        }, retryDelay);
     }
     
     // 心跳機制 - 定期重新連線以防止連線被中間設備關閉
