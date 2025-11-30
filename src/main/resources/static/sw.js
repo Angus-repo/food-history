@@ -20,7 +20,7 @@ const DATA_VERSION = 'd1';
 
 // HTML 版本 - HTML 頁面獨立版本，不跟著 CODE_VERSION，避免更新程式碼時清除 HTML 快取
 // 只有在 HTML 結構有重大變更時才需要更新此版本
-const HTML_VERSION = 'h1';
+const HTML_VERSION = 'h2';
 
 // 程式碼相關快取（更新程式時會清除）
 const STATIC_CACHE = `${CACHE_PREFIX}-static-${CODE_VERSION}`;
