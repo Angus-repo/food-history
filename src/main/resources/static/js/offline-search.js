@@ -1,32 +1,21 @@
 /**
  * 離線搜尋模組
  * 處理前端離線搜尋功能與 Service Worker 通訊
+ * 注意：連線狀態由頁面上的 ConnectionManager 管理，此模組只處理離線搜尋邏輯
  */
 
 class OfflineSearchManager {
     constructor() {
-        this.browserOnline = navigator.onLine; // 瀏覽器網路狀態
-        this.serverOnline = false; // 伺服器連線狀態
-        this.isOnline = false; // 總體狀態（browserOnline && serverOnline）
+        this.isOnline = navigator.onLine; // 初始狀態依賴瀏覽器
         this.cachedData = null;
         this.cacheVersion = null;
         this.isInitialized = false;
         this.prefetchProgress = 0;
-        this.websocket = null;
-        this.reconnectTimeout = null;
-        this.pingInterval = null;
-        this.pongTimeout = null;
-        this.wsEndpoint = null; // 會在 init 時設定
-        this.connectionConfirmed = false; // 是否已確認 WebSocket 連線成功
         
         this.init();
     }
     
     async init() {
-        // 設定 WebSocket 端點（自動判斷 ws 或 wss）
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        this.wsEndpoint = `${protocol}//${window.location.host}/ws/connection`;
-        
         // 註冊 Service Worker
         if ('serviceWorker' in navigator) {
             try {
@@ -57,196 +46,31 @@ class OfflineSearchManager {
             }
         }
         
-        // 使用 WebSocket 監測伺服器連線狀態
-        this.connectWebSocket();
-        
-        // 監聽瀏覽器的 online/offline 事件
-        window.addEventListener('online', () => {
-            console.log('[OfflineSearch] 瀏覽器回報網路已連線');
-            this.browserOnline = true;
-            // 清除任何現有的重連計時器
-            if (this.reconnectTimeout) {
-                clearTimeout(this.reconnectTimeout);
-                this.reconnectTimeout = null;
-            }
-            // 立即嘗試連線伺服器
-            this.connectWebSocket();
-        });
-        
-        window.addEventListener('offline', () => {
-            console.log('[OfflineSearch] 瀏覽器回報網路已斷線');
-            this.browserOnline = false;
-            // 瀏覽器離線，立即關閉 WebSocket 連線
-            this.closeWebSocket();
-            this.serverOnline = false;
-            this.connectionConfirmed = false;
-            this.updateConnectionState();
-        });
-        
         // 監聽 Service Worker 訊息
         navigator.serviceWorker.addEventListener('message', (event) => this.handleServiceWorkerMessage(event));
         
-        // 頁面可見性變化時重新連線
-        document.addEventListener('visibilitychange', () => {
-            if (document.visibilityState === 'visible') {
-                if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
-                    this.connectWebSocket();
-                }
-            }
-        }, { passive: true });
-    }
-    
-    closeWebSocket() {
-        // 清理 ping/pong 計時器
-        if (this.pingInterval) {
-            clearInterval(this.pingInterval);
-            this.pingInterval = null;
-        }
-        if (this.pongTimeout) {
-            clearTimeout(this.pongTimeout);
-            this.pongTimeout = null;
-        }
-        if (this.websocket) {
-            this.websocket.close();
-            this.websocket = null;
-        }
-    }
-    
-    connectWebSocket() {
-        // 清理舊連線
-        this.closeWebSocket();
-        
-        if (this.reconnectTimeout) {
-            clearTimeout(this.reconnectTimeout);
-            this.reconnectTimeout = null;
-        }
-        
-        // 如果瀏覽器報告離線，不嘗試連線
-        if (!navigator.onLine) {
-            console.log('[OfflineSearch] 瀏覽器報告離線，跳過 WebSocket 連線');
-            this.browserOnline = false;
-            this.serverOnline = false;
-            this.updateConnectionState();
-            return;
-        }
-        
-        console.log('[OfflineSearch] 正在建立 WebSocket 連線...', this.wsEndpoint);
-        this.connectionConfirmed = false;
-        
-        try {
-            this.websocket = new WebSocket(this.wsEndpoint);
-        } catch (error) {
-            console.log('[OfflineSearch] 無法建立 WebSocket 連線:', error);
-            this.setServerOnline(false);
-            this.scheduleReconnect();
-            return;
-        }
-        
-        // WebSocket 連線成功開啟
-        this.websocket.onopen = () => {
-            console.log('[OfflineSearch] WebSocket 連線已建立');
-            this.connectionConfirmed = true;
-            this.setServerOnline(true);
-            this.startPingInterval();
-        };
-        
-        // WebSocket 收到訊息
-        this.websocket.onmessage = (event) => {
-            const data = event.data;
-            console.log('[OfflineSearch] 收到訊息:', data);
+        // 監聯頁面上 ConnectionManager 的狀態變化（如果存在）
+        // ConnectionManager 會透過 window 事件通知狀態變化
+        window.addEventListener('connectionStateChanged', (event) => {
+            this.isOnline = event.detail.isOnline;
+            console.log('[OfflineSearch] 收到連線狀態變化:', this.isOnline);
             
-            try {
-                const message = JSON.parse(data);
-                
-                if (message.type === 'pong') {
-                    // 收到 pong，清除超時計時器
-                    if (this.pongTimeout) {
-                        clearTimeout(this.pongTimeout);
-                        this.pongTimeout = null;
-                    }
-                } else if (message.type === 'heartbeat') {
-                    // 伺服器心跳，表示連線正常
-                    console.log('[OfflineSearch] 收到伺服器心跳');
-                } else if (message.type === 'connected') {
-                    // 連線確認訊息
-                    console.log('[OfflineSearch] 收到連線確認');
-                } else if (message.type === 'data-updated') {
-                    // 資料更新通知
-                    console.log('[OfflineSearch] 收到資料更新通知');
-                    this.sendMessageToSW({ type: 'CHECK_CACHE_VERSION' });
-                }
-            } catch (e) {
-                // 非 JSON 格式，可能是舊版訊息
-                if (data === 'pong') {
-                    if (this.pongTimeout) {
-                        clearTimeout(this.pongTimeout);
-                        this.pongTimeout = null;
-                    }
-                }
+            if (this.isOnline) {
+                // 線上時檢查快取版本
+                this.sendMessageToSW({ type: 'CHECK_CACHE_VERSION' });
             }
-        };
+        });
         
-        // WebSocket 連線關閉 - 立即顯示離線狀態
-        this.websocket.onclose = (event) => {
-            console.log('[OfflineSearch] WebSocket 連線已關閉，code:', event.code, 'reason:', event.reason);
-            // 立即顯示離線狀態
-            this.setServerOnline(false);
-            this.connectionConfirmed = false;
-            // 清理 ping/pong 計時器
-            if (this.pingInterval) {
-                clearInterval(this.pingInterval);
-                this.pingInterval = null;
-            }
-            if (this.pongTimeout) {
-                clearTimeout(this.pongTimeout);
-                this.pongTimeout = null;
-            }
-            this.scheduleReconnect();
-        };
+        // 備用：監聽瀏覽器的 online/offline 事件
+        window.addEventListener('online', () => {
+            // 等待 ConnectionManager 確認伺服器連線後再更新
+            // 這裡只是備用，主要由 connectionStateChanged 事件處理
+        });
         
-        // WebSocket 連線錯誤
-        this.websocket.onerror = (error) => {
-            console.log('[OfflineSearch] WebSocket 連線錯誤');
-            // onclose 會被觸發，所以這裡不需要額外處理
-        };
-    }
-    
-    // 客戶端定期發送 ping 確認連線
-    startPingInterval() {
-        // 每 15 秒發送一次 ping
-        this.pingInterval = setInterval(() => {
-            if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
-                console.log('[OfflineSearch] 發送 ping');
-                this.websocket.send(JSON.stringify({ type: 'ping' }));
-                
-                // 設定 5 秒超時等待 pong
-                this.pongTimeout = setTimeout(() => {
-                    console.log('[OfflineSearch] ping 超時未收到 pong，關閉連線');
-                    this.closeWebSocket();
-                    this.setServerOnline(false);
-                    this.scheduleReconnect();
-                }, 5000);
-            }
-        }, 15000);
-    }
-    
-    scheduleReconnect() {
-        if (this.reconnectTimeout) return;
-        
-        // 如果瀏覽器報告離線，不排程重連
-        if (!navigator.onLine) {
-            console.log('[OfflineSearch] 瀏覽器報告離線，暫不排程重連');
-            return;
-        }
-        
-        // 固定 3 秒重試間隔
-        const retryDelay = 3000;
-        console.log(`[OfflineSearch] 將在 ${retryDelay / 1000} 秒後嘗試重新連線...`);
-        
-        this.reconnectTimeout = setTimeout(() => {
-            this.reconnectTimeout = null;
-            this.connectWebSocket();
-        }, retryDelay);
+        window.addEventListener('offline', () => {
+            this.isOnline = false;
+            console.log('[OfflineSearch] 瀏覽器回報網路已斷線');
+        });
     }
     
     onServiceWorkerReady() {
@@ -306,48 +130,6 @@ class OfflineSearchManager {
     }
     
     // ========== 事件處理 ==========
-    
-    // 設定伺服器連線狀態
-    setServerOnline(online) {
-        console.log('[OfflineSearch] setServerOnline:', online);
-        this.serverOnline = online;
-        this.updateConnectionState();
-    }
-    
-    // 計算並更新總體連線狀態
-    // 在線條件：瀏覽器在線 AND 伺服器連線成功
-    // 離線條件：瀏覽器離線 OR 伺服器離線
-    updateConnectionState() {
-        const newOnlineState = this.browserOnline && this.serverOnline;
-        console.log('[OfflineSearch] updateConnectionState - 瀏覽器:', this.browserOnline, '伺服器:', this.serverOnline, '=> 總體:', newOnlineState);
-        
-        if (this.isOnline === newOnlineState) return; // 狀態沒變，不處理
-        
-        const wasOnline = this.isOnline;
-        this.isOnline = newOnlineState;
-        
-        if (newOnlineState) {
-            console.log('[OfflineSearch] 已連線（瀏覽器+伺服器都在線）');
-            this.updateConnectionStatus();
-            // 檢查是否需要更新快取
-            this.sendMessageToSW({ type: 'CHECK_CACHE_VERSION' });
-        } else {
-            console.log('[OfflineSearch] 已離線（瀏覽器或伺服器離線）');
-            this.updateConnectionStatus();
-            // 切換到離線搜尋模式
-            this.enableOfflineSearch();
-        }
-    }
-
-    async onOnline() {
-        // 過時方法，保留相容性
-        this.setServerOnline(true);
-    }
-    
-    async onOffline() {
-        // 過時方法，保留相容性
-        this.setServerOnline(false);
-    }
     
     onPrefetchStarted() {
         console.log('[OfflineSearch] 預載開始');
@@ -473,41 +255,7 @@ class OfflineSearchManager {
     
     // ========== UI 更新方法 ==========
     
-    updateConnectionStatus() {
-        const indicator = document.getElementById('connectionIndicator');
-        const offlineBanner = document.getElementById('offlineBanner');
-        const refreshCacheBtn = document.getElementById('refreshCacheBtn');
-        
-        if (this.isOnline) {
-            if (indicator) {
-                indicator.classList.remove('offline');
-                indicator.classList.add('online');
-                indicator.innerHTML = '<i class="bi bi-wifi"></i> 線上';
-            }
-            if (offlineBanner) {
-                offlineBanner.style.display = 'none';
-            }
-            // 線上時啟用更新快取按鈕
-            if (refreshCacheBtn) {
-                refreshCacheBtn.disabled = false;
-                refreshCacheBtn.title = '更新離線快取';
-            }
-        } else {
-            if (indicator) {
-                indicator.classList.remove('online');
-                indicator.classList.add('offline');
-                indicator.innerHTML = '<i class="bi bi-wifi-off"></i> 離線';
-            }
-            if (offlineBanner) {
-                offlineBanner.style.display = 'block';
-            }
-            // 離線時停用更新快取按鈕
-            if (refreshCacheBtn) {
-                refreshCacheBtn.disabled = true;
-                refreshCacheBtn.title = '離線時無法更新快取';
-            }
-        }
-    }
+    // 注意：連線狀態 UI 由 ConnectionManager 管理，這裡只處理快取相關 UI
     
     updateCacheStatus(hasCached, count) {
         const cacheStatus = document.getElementById('cacheStatus');

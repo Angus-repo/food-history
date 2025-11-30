@@ -11,11 +11,22 @@ workbox.setConfig({ debug: false });
 
 // 快取名稱配置
 const CACHE_PREFIX = 'food-history';
-const CACHE_VERSION = 'v5';
-const OFFLINE_DATA_CACHE = `${CACHE_PREFIX}-offline-data-${CACHE_VERSION}`;
-const IMAGE_CACHE = `${CACHE_PREFIX}-images-${CACHE_VERSION}`;
-const STATIC_CACHE = `${CACHE_PREFIX}-static-${CACHE_VERSION}`;
-const HTML_CACHE = `${CACHE_PREFIX}-html-${CACHE_VERSION}`;
+
+// 程式碼版本 - 更新 JS/CSS/HTML 等靜態資源時修改此版本
+const CODE_VERSION = 'c6';
+
+// 資料版本 - 只有資料結構改變時才需要修改，一般不需要改
+const DATA_VERSION = 'd1';
+
+// 程式碼相關快取（更新程式時會清除）
+const STATIC_CACHE = `${CACHE_PREFIX}-static-${CODE_VERSION}`;
+const HTML_CACHE = `${CACHE_PREFIX}-html-${CODE_VERSION}`;
+const FONTS_CACHE = `${CACHE_PREFIX}-fonts-${CODE_VERSION}`;
+const CDN_CACHE = `${CACHE_PREFIX}-cdn-${CODE_VERSION}`;
+
+// 資料相關快取（更新程式時保留）
+const OFFLINE_DATA_CACHE = `${CACHE_PREFIX}-offline-data-${DATA_VERSION}`;
+const IMAGE_CACHE = `${CACHE_PREFIX}-images-${DATA_VERSION}`;
 
 // 預快取靜態資源
 workbox.precaching.precacheAndRoute([
@@ -47,7 +58,7 @@ workbox.routing.registerRoute(
 workbox.routing.registerRoute(
     ({ url }) => url.pathname.startsWith('/fonts/'),
     new workbox.strategies.CacheFirst({
-        cacheName: `${CACHE_PREFIX}-fonts-${CACHE_VERSION}`,
+        cacheName: FONTS_CACHE,
         plugins: [
             new workbox.expiration.ExpirationPlugin({
                 maxEntries: 10,
@@ -98,7 +109,7 @@ workbox.routing.registerRoute(
 workbox.routing.registerRoute(
     ({ url }) => url.hostname === 'cdn.jsdelivr.net',
     new workbox.strategies.CacheFirst({
-        cacheName: `${CACHE_PREFIX}-cdn-${CACHE_VERSION}`,
+        cacheName: CDN_CACHE,
         plugins: [
             new workbox.expiration.ExpirationPlugin({
                 maxEntries: 30,
@@ -191,13 +202,23 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
     console.log('[Service Worker] 啟動中...');
     
-    // 清理舊版本快取
+    // 當前有效的快取名稱列表
+    const validCaches = [
+        STATIC_CACHE,
+        HTML_CACHE,
+        FONTS_CACHE,
+        CDN_CACHE,
+        OFFLINE_DATA_CACHE,
+        IMAGE_CACHE
+    ];
+    
+    // 清理舊版本快取（只清理程式碼快取，保留資料快取）
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
                 cacheNames
                     .filter((cacheName) => cacheName.startsWith(CACHE_PREFIX))
-                    .filter((cacheName) => !cacheName.includes(CACHE_VERSION))
+                    .filter((cacheName) => !validCaches.includes(cacheName))
                     .map((cacheName) => {
                         console.log('[Service Worker] 刪除舊快取:', cacheName);
                         return caches.delete(cacheName);

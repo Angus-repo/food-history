@@ -1019,6 +1019,11 @@
                 this.lastOnlineState = isOnline;
                 this.updateUI(isOnline);
                 
+                // 發送事件通知其他模組（如 OfflineSearchManager）
+                window.dispatchEvent(new CustomEvent('connectionStateChanged', {
+                    detail: { isOnline }
+                }));
+                
                 if (isOnline) {
                     console.log('[Connection] 已連線（瀏覽器+伺服器都在線）');
                     // 只有從離線恢復時才顯示通知
