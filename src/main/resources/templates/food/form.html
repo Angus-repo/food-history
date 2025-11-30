@@ -795,14 +795,38 @@
             reconnectDelay: 1000, // 重連延遲，會逐漸增加
             maxReconnectDelay: 30000, // 最大重連延遲 30 秒
             sseEndpoint: '/api/foods/connection-stream',
+            connectionConfirmed: false, // 是否已確認連線成功
             
             init() {
-                // 先假設離線狀態，等 SSE 連線成功後再更新為線上
-                // 這樣可以確保離線時 UI 正確顯示
-                this.updateUI(false);
+                // 先根據瀏覽器的 navigator.onLine 設定初始狀態
+                const initialOnline = navigator.onLine;
+                this.updateUI(initialOnline);
+                if (initialOnline) {
+                    this.lastOnlineState = null; // 重置，讓 SSE 確認後可以正確觸發
+                }
                 
                 // 使用 SSE 建立持久連線
                 this.connectSSE();
+                
+                // 監聯瀏覽器的 online/offline 事件
+                window.addEventListener('online', () => {
+                    console.log('[Connection] 瀏覽器回報網路已連線');
+                    // 網路恢復時，重新建立 SSE 連線
+                    this.connectSSE();
+                });
+                
+                window.addEventListener('offline', () => {
+                    console.log('[Connection] 瀏覽器回報網路已斷線');
+                    // 立即關閉 SSE 連線並更新狀態
+                    if (this.eventSource) {
+                        this.eventSource.close();
+                        this.eventSource = null;
+                    }
+                    this.connectionConfirmed = false;
+                    // 強制更新為離線狀態（繞過重複檢查）
+                    this.lastOnlineState = null;
+                    this.handleOffline();
+                });
                 
                 // 頁面可見性變化時重新連線
                 document.addEventListener('visibilitychange', () => {
@@ -827,6 +851,7 @@
                 }
                 
                 console.log('[Connection] 正在建立 SSE 連線...');
+                this.connectionConfirmed = false;
                 
                 try {
                     this.eventSource = new EventSource(this.sseEndpoint);
@@ -842,19 +867,33 @@
                 this.eventSource.addEventListener('connected', (event) => {
                     console.log('[Connection] SSE 連線已建立:', event.data);
                     this.reconnectDelay = 1000; // 重置重連延遲
+                    this.connectionConfirmed = true;
                     this.handleOnline();
                 });
                 
-                // 連線開啟
+                // 連線開啟 - 此時還不能確認伺服器真的在線，要等 connected 事件
                 this.eventSource.onopen = () => {
-                    console.log('[Connection] SSE 連線開啟');
+                    console.log('[Connection] SSE 連線開啟，等待伺服器確認...');
+                    // 給伺服器 3 秒時間發送 connected 事件
+                    setTimeout(() => {
+                        if (!this.connectionConfirmed && this.eventSource && this.eventSource.readyState === EventSource.OPEN) {
+                            console.log('[Connection] 伺服器未在預期時間內確認連線，視為已連線');
+                            this.connectionConfirmed = true;
+                            this.handleOnline();
+                        }
+                    }, 3000);
                 };
                 
                 // 連線錯誤（伺服器離線或網路問題）
                 this.eventSource.onerror = (error) => {
-                    console.log('[Connection] SSE 連線錯誤，伺服器可能離線');
+                    console.log('[Connection] SSE 連線錯誤');
+                    // 只有在已經確認過連線成功後，錯誤才代表斷線
+                    // 或者連線從未成功過且多次重試失敗
+                    if (this.connectionConfirmed || this.reconnectDelay > 4000) {
+                        this.handleOffline();
+                    }
                     this.eventSource.close();
-                    this.handleOffline();
+                    this.connectionConfirmed = false;
                     this.scheduleReconnect();
                 };
             },
@@ -874,28 +913,39 @@
             },
             
             handleOnline() {
+                const wasOffline = this.lastOnlineState === false;
                 if (this.lastOnlineState === true) return; // 避免重複觸發
                 this.lastOnlineState = true;
                 console.log('[Connection] 伺服器已連線');
                 this.updateUI(true);
-                this.showNotification('伺服器已恢復連線', 'success');
+                // 只有從離線恢復時才顯示通知
+                if (wasOffline) {
+                    this.showNotification('伺服器已恢復連線', 'success');
+                }
             },
             
             handleOffline() {
                 if (this.lastOnlineState === false) return; // 避免重複觸發
+                const wasOnline = this.lastOnlineState === true;
                 this.lastOnlineState = false;
                 console.log('[Connection] 伺服器連線中斷');
                 this.updateUI(false);
-                this.showNotification('無法連線到伺服器，已切換至離線模式', 'warning');
+                // 只有從線上變離線時才顯示通知
+                if (wasOnline) {
+                    this.showNotification('無法連線到伺服器，已切換至離線模式', 'warning');
+                }
             },
             
             updateUI(isOnline) {
+                console.log('[Connection] updateUI 被呼叫, isOnline:', isOnline);
                 const indicator = document.getElementById('connectionIndicator');
                 const banner = document.getElementById('offlineBanner');
                 const submitBtn = document.querySelector('#foodForm button[type="submit"]');
                 const deleteBtn = document.getElementById('deleteBtn');
                 const favoriteBtn = document.getElementById('favoriteBtn');
                 const formInputs = document.querySelectorAll('#foodForm input:not([type="hidden"]), #foodForm textarea, #foodForm select');
+                
+                console.log('[Connection] indicator 元素:', indicator);
                 
                 if (indicator) {
                     if (isOnline) {
@@ -905,6 +955,9 @@
                         indicator.className = 'connection-indicator offline';
                         indicator.innerHTML = '<i class="bi bi-wifi-off"></i> 離線';
                     }
+                    console.log('[Connection] indicator 已更新為:', isOnline ? '線上' : '離線');
+                } else {
+                    console.warn('[Connection] 找不到 connectionIndicator 元素！');
                 }
                 
                 if (banner) {

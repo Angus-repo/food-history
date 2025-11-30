@@ -5,7 +5,7 @@
 
 class OfflineSearchManager {
     constructor() {
-        this.isOnline = true; // 預設為線上，等實際檢測後更新
+        this.isOnline = navigator.onLine; // 使用瀏覽器狀態作為初始值
         this.cachedData = null;
         this.cacheVersion = null;
         this.isInitialized = false;
@@ -15,6 +15,7 @@ class OfflineSearchManager {
         this.reconnectDelay = 1000;
         this.maxReconnectDelay = 30000;
         this.sseEndpoint = '/api/foods/connection-stream';
+        this.connectionConfirmed = false; // 是否已確認 SSE 連線成功
         
         this.init();
     }
@@ -53,6 +54,26 @@ class OfflineSearchManager {
         // 使用 SSE 監測伺服器連線狀態
         this.connectSSE();
         
+        // 監聽瀏覽器的 online/offline 事件
+        window.addEventListener('online', () => {
+            console.log('[OfflineSearch] 瀏覽器回報網路已連線');
+            // 網路恢復時，重新建立 SSE 連線
+            this.connectSSE();
+        });
+        
+        window.addEventListener('offline', () => {
+            console.log('[OfflineSearch] 瀏覽器回報網路已斷線');
+            // 立即關閉 SSE 連線並更新狀態
+            if (this.eventSource) {
+                this.eventSource.close();
+                this.eventSource = null;
+            }
+            this.connectionConfirmed = false;
+            // 強制更新為離線狀態
+            this.isOnline = null; // 重置以繞過重複檢查
+            this.onOffline();
+        });
+        
         // 監聽 Service Worker 訊息
         navigator.serviceWorker.addEventListener('message', (event) => this.handleServiceWorkerMessage(event));
         
@@ -78,6 +99,7 @@ class OfflineSearchManager {
         }
         
         console.log('[OfflineSearch] 正在建立 SSE 連線...');
+        this.connectionConfirmed = false;
         
         try {
             this.eventSource = new EventSource(this.sseEndpoint);
@@ -89,22 +111,37 @@ class OfflineSearchManager {
             return;
         }
         
-        // 連線成功
+        // 連線成功（收到 connected 事件）
         this.eventSource.addEventListener('connected', (event) => {
             console.log('[OfflineSearch] SSE 連線已建立:', event.data);
             this.reconnectDelay = 1000;
+            this.connectionConfirmed = true;
             this.onOnline();
         });
         
+        // 連線開啟 - 此時還不能確認伺服器真的在線，要等 connected 事件
         this.eventSource.onopen = () => {
-            console.log('[OfflineSearch] SSE 連線開啟');
+            console.log('[OfflineSearch] SSE 連線開啟，等待伺服器確認...');
+            // 給伺服器 3 秒時間發送 connected 事件
+            setTimeout(() => {
+                if (!this.connectionConfirmed && this.eventSource && this.eventSource.readyState === EventSource.OPEN) {
+                    console.log('[OfflineSearch] 伺服器未在預期時間內確認連線，視為已連線');
+                    this.connectionConfirmed = true;
+                    this.onOnline();
+                }
+            }, 3000);
         };
         
         // 連線錯誤
         this.eventSource.onerror = (error) => {
-            console.log('[OfflineSearch] SSE 連線錯誤，伺服器可能離線');
+            console.log('[OfflineSearch] SSE 連線錯誤');
+            // 只有在已經確認過連線成功後，錯誤才代表斷線
+            // 或者連線從未成功過且多次重試失敗
+            if (this.connectionConfirmed || this.reconnectDelay > 4000) {
+                this.onOffline();
+            }
             this.eventSource.close();
-            this.onOffline();
+            this.connectionConfirmed = false;
             this.scheduleReconnect();
         };
         
@@ -187,6 +224,10 @@ class OfflineSearchManager {
     // ========== 事件處理 ==========
     
     async onOnline() {
+        // 避免重複觸發
+        if (this.isOnline === true) return;
+        const wasOffline = this.isOnline === false;
+        
         console.log('[OfflineSearch] 伺服器已連線');
         this.isOnline = true;
         this.updateConnectionStatus();
@@ -196,6 +237,9 @@ class OfflineSearchManager {
     }
     
     async onOffline() {
+        // 避免重複觸發
+        if (this.isOnline === false) return;
+        
         console.log('[OfflineSearch] 伺服器已離線');
         this.isOnline = false;
         this.updateConnectionStatus();
