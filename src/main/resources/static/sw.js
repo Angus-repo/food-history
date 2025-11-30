@@ -13,7 +13,7 @@ workbox.setConfig({ debug: false });
 const CACHE_PREFIX = 'food-history';
 
 // 程式碼版本 - 更新 JS/CSS/HTML 等靜態資源時修改此版本
-const CODE_VERSION = 'c8';
+const CODE_VERSION = 'c12';
 
 // 資料版本 - 只有資料結構改變時才需要修改，一般不需要改
 const DATA_VERSION = 'd1';
@@ -37,6 +37,7 @@ workbox.precaching.precacheAndRoute([
     { url: '/fonts/bootstrap-icons.woff', revision: '3' },
     { url: '/js/food.js', revision: '3' },
     { url: '/js/offline-search.js', revision: '3' },
+    { url: '/js/connection-manager.js', revision: '1' },
     { url: '/manifest.json', revision: '3' }
 ]);
 
@@ -124,14 +125,22 @@ workbox.routing.registerRoute(
 
 // 快取策略：HTML 頁面（食物列表頁面、編輯頁面）- 使用 NetworkFirst，離線時回退到快取
 // 注意：新增頁面 /foods/new 不需要快取，因為離線時無法新增資料
+// 
+// 重要：此路由會將帶查詢參數的 URL（如 /foods/374/edit?page=0&foodId=374）
+// 轉換為不帶參數的快取 key（/foods/374/edit），確保離線時可以正確讀取快取
 workbox.routing.registerRoute(
     ({ request, url }) => {
         // 匹配 /foods 相關頁面（列表、編輯）
         if (request.destination === 'document') {
             const pathname = url.pathname;
             // 匹配：/foods, /foods/{id}/edit（不包含 /foods/new）
-            return pathname === '/foods' || 
+            // 注意：這裡只匹配 pathname，查詢參數會被 cacheKeyWillBeUsed 處理
+            const isMatch = pathname === '/foods' || 
                    pathname.match(/^\/foods\/\d+\/edit$/);
+            if (isMatch) {
+                console.log('[Service Worker] HTML 路由匹配:', url.href);
+            }
+            return isMatch;
         }
         return false;
     },
@@ -145,12 +154,16 @@ workbox.routing.registerRoute(
             new workbox.cacheableResponse.CacheableResponsePlugin({
                 statuses: [0, 200]
             }),
-            // 忽略查詢參數，使 /foods/374/edit?page=0 匹配 /foods/374/edit 的快取
+            // 忽略查詢參數，確保帶參數和不帶參數的 URL 使用相同的快取
+            // 例如：/foods/374/edit?page=0&foodId=374 -> /foods/374/edit
+            //       /foods?page=1 -> /foods
             {
-                cacheKeyWillBeUsed: async ({ request }) => {
+                cacheKeyWillBeUsed: async ({ request, mode }) => {
                     const url = new URL(request.url);
-                    // 移除查詢參數，只保留路徑
-                    return url.pathname;
+                    // 移除查詢參數，只保留 origin + pathname
+                    const cacheKey = url.origin + url.pathname;
+                    console.log(`[Service Worker] cacheKeyWillBeUsed (${mode}): ${request.url} -> ${cacheKey}`);
+                    return new Request(cacheKey, { headers: request.headers });
                 }
             }
         ],
@@ -184,14 +197,24 @@ self.addEventListener('install', (event) => {
     
     // 預先快取重要的 HTML 頁面
     event.waitUntil(
-        caches.open(HTML_CACHE).then((cache) => {
+        caches.open(HTML_CACHE).then(async (cache) => {
             console.log('[Service Worker] 預快取 HTML 頁面');
-            return cache.addAll([
-                '/foods',
-                '/login'
-            ]).catch(err => {
-                console.warn('[Service Worker] 預快取失敗，可能需要先登入:', err);
-            });
+            // 使用完整 URL 作為快取 key
+            const urlsToCache = [
+                new URL('/foods', self.location.origin).href,
+                new URL('/login', self.location.origin).href
+            ];
+            for (const url of urlsToCache) {
+                try {
+                    const response = await fetch(url);
+                    if (response.ok) {
+                        await cache.put(url, response);
+                        console.log('[Service Worker] 已預快取:', url);
+                    }
+                } catch (err) {
+                    console.warn('[Service Worker] 預快取失敗:', url, err);
+                }
+            }
         })
     );
     
@@ -251,6 +274,10 @@ self.addEventListener('message', (event) => {
     if (event.data && event.data.type === 'CHECK_CACHE_VERSION') {
         checkCacheVersion(event);
     }
+    
+    if (event.data && event.data.type === 'LIST_HTML_CACHE') {
+        listHtmlCache(event);
+    }
 });
 
 // 預載所有資料
@@ -280,12 +307,24 @@ async function prefetchAllData(event) {
         let loadedPages = 0;
         const totalPages = data.foods.length;
         
+        console.log('[Service Worker] 開始預快取編輯頁面，共', totalPages, '筆食物資料');
+        
         for (const food of data.foods) {
             try {
-                const editUrl = `/foods/${food.id}/edit`;
-                const pageResponse = await fetch(editUrl);
+                const editPath = `/foods/${food.id}/edit`;
+                // 使用完整 URL 作為快取 key，與 cacheKeyWillBeUsed 保持一致
+                const editUrl = new URL(editPath, self.location.origin).href;
+                console.log('[Service Worker] 正在快取:', editUrl, '(food.id:', food.id, ')');
+                
+                const pageResponse = await fetch(editPath);
+                console.log('[Service Worker] fetch 結果:', editPath, 'status:', pageResponse.status);
+                
                 if (pageResponse.ok) {
+                    // 使用完整 URL 作為快取 key
                     await htmlCache.put(editUrl, pageResponse);
+                    console.log('[Service Worker] 已快取編輯頁面:', editUrl);
+                } else {
+                    console.warn('[Service Worker] fetch 失敗:', editPath, 'status:', pageResponse.status);
                 }
                 loadedPages++;
                 
@@ -516,5 +555,28 @@ async function syncFoodData() {
         }
     } catch (error) {
         console.error('[Service Worker] 背景同步失敗:', error);
+    }
+}
+
+// 列出 HTML 快取內容（用於調試）
+async function listHtmlCache(event) {
+    try {
+        const cache = await caches.open(HTML_CACHE);
+        const keys = await cache.keys();
+        const urls = keys.map(request => request.url);
+        
+        console.log('[Service Worker] HTML 快取內容:', urls);
+        
+        notifyClient(event, {
+            type: 'HTML_CACHE_LIST',
+            cacheName: HTML_CACHE,
+            urls: urls,
+            count: urls.length
+        });
+    } catch (error) {
+        notifyClient(event, {
+            type: 'HTML_CACHE_LIST',
+            error: error.message
+        });
     }
 }

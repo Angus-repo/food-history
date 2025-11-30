@@ -786,302 +786,22 @@
                 alert('操作失敗，請稍後再試');
             });
         }
-
-        // 連線狀態管理（使用 WebSocket）
-        const ConnectionManager = {
-            lastOnlineState: null,
-            browserOnline: navigator.onLine, // 瀏覽器網路狀態
-            serverOnline: false, // 伺服器連線狀態
-            websocket: null,
-            reconnectTimeout: null,
-            wsEndpoint: null, // 會在 init 時設定
-            connectionConfirmed: false, // 是否已確認連線成功
-            pingInterval: null, // 客戶端 ping 計時器
-            pongTimeout: null, // 等待 pong 回應的計時器
-            
-            init() {
-                // 設定 WebSocket 端點（自動判斷 ws 或 wss）
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                this.wsEndpoint = `${protocol}//${window.location.host}/ws/connection`;
-                
-                // 初始狀態：瀏覽器在線但伺服器還未確認
-                this.browserOnline = navigator.onLine;
-                this.serverOnline = false;
-                
-                // 初始不顯示任何狀態，等 WebSocket 確認後才更新 UI
-                console.log('[Connection] 初始化 - 瀏覽器:', this.browserOnline, '伺服器:', this.serverOnline, '（等待 WebSocket 確認）');
-                
-                // 使用 WebSocket 建立持久連線
-                this.connectWebSocket();
-                
-                // 監聯瀏覽器的 online/offline 事件
-                window.addEventListener('online', () => {
-                    console.log('[Connection] 瀏覽器回報網路已連線');
-                    this.browserOnline = true;
-                    // 清除任何現有的重連計時器
-                    if (this.reconnectTimeout) {
-                        clearTimeout(this.reconnectTimeout);
-                        this.reconnectTimeout = null;
-                    }
-                    // 立即嘗試連線伺服器
-                    this.connectWebSocket();
-                });
-                
-                window.addEventListener('offline', () => {
-                    console.log('[Connection] 瀏覽器回報網路已斷線');
-                    this.browserOnline = false;
-                    // 瀏覽器離線，立即關閉 WebSocket 連線
-                    this.closeWebSocket();
-                    this.serverOnline = false;
-                    this.connectionConfirmed = false;
-                    this.updateConnectionState();
-                });
-                
-                // 頁面可見性變化時重新連線
-                document.addEventListener('visibilitychange', () => {
-                    if (document.visibilityState === 'visible') {
-                        // 頁面恢復可見時，如果連線已斷開，嘗試重新連線
-                        if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
-                            this.connectWebSocket();
-                        }
-                    }
-                }, { passive: true });
-            },
-            
-            closeWebSocket() {
-                // 清理 ping/pong 計時器
-                if (this.pingInterval) {
-                    clearInterval(this.pingInterval);
-                    this.pingInterval = null;
-                }
-                if (this.pongTimeout) {
-                    clearTimeout(this.pongTimeout);
-                    this.pongTimeout = null;
-                }
-                if (this.websocket) {
-                    this.websocket.close();
-                    this.websocket = null;
-                }
-            },
-            
-            connectWebSocket() {
-                // 清理舊連線
-                this.closeWebSocket();
-                
-                if (this.reconnectTimeout) {
-                    clearTimeout(this.reconnectTimeout);
-                    this.reconnectTimeout = null;
-                }
-                
-                // 如果瀏覽器報告離線，不嘗試連線
-                if (!navigator.onLine) {
-                    console.log('[Connection] 瀏覽器報告離線，跳過 WebSocket 連線');
-                    this.browserOnline = false;
-                    this.serverOnline = false;
-                    this.updateConnectionState();
-                    return;
-                }
-                
-                console.log('[Connection] 正在建立 WebSocket 連線...', this.wsEndpoint);
-                this.connectionConfirmed = false;
-                
-                try {
-                    this.websocket = new WebSocket(this.wsEndpoint);
-                } catch (error) {
-                    console.log('[Connection] 無法建立 WebSocket 連線:', error);
-                    this.setServerOnline(false);
-                    this.scheduleReconnect();
-                    return;
-                }
-                
-                // WebSocket 連線成功開啟
-                this.websocket.onopen = () => {
-                    console.log('[Connection] WebSocket 連線已建立');
-                    this.connectionConfirmed = true;
-                    this.setServerOnline(true);
-                    this.startPing();
-                };
-                
-                // WebSocket 收到訊息
-                this.websocket.onmessage = (event) => {
-                    const data = event.data;
-                    console.log('[Connection] 收到訊息:', data);
-                    
-                    try {
-                        const message = JSON.parse(data);
-                        
-                        if (message.type === 'pong') {
-                            // 收到 pong，清除超時計時器
-                            if (this.pongTimeout) {
-                                clearTimeout(this.pongTimeout);
-                                this.pongTimeout = null;
-                            }
-                        } else if (message.type === 'heartbeat') {
-                            // 伺服器心跳，表示連線正常
-                            console.log('[Connection] 收到伺服器心跳');
-                        } else if (message.type === 'connected') {
-                            // 連線確認訊息
-                            console.log('[Connection] 收到連線確認');
-                        }
-                    } catch (e) {
-                        // 非 JSON 格式，可能是舊版訊息
-                        if (data === 'pong') {
-                            if (this.pongTimeout) {
-                                clearTimeout(this.pongTimeout);
-                                this.pongTimeout = null;
-                            }
-                        }
-                    }
-                };
-                
-                // WebSocket 連線關閉 - 立即顯示離線狀態
-                this.websocket.onclose = (event) => {
-                    console.log('[Connection] WebSocket 連線已關閉，code:', event.code, 'reason:', event.reason);
-                    // 立即顯示離線狀態
-                    this.setServerOnline(false);
-                    this.connectionConfirmed = false;
-                    // 清理 ping/pong 計時器
-                    if (this.pingInterval) {
-                        clearInterval(this.pingInterval);
-                        this.pingInterval = null;
-                    }
-                    if (this.pongTimeout) {
-                        clearTimeout(this.pongTimeout);
-                        this.pongTimeout = null;
-                    }
-                    this.scheduleReconnect();
-                };
-                
-                // WebSocket 連線錯誤
-                this.websocket.onerror = (error) => {
-                    console.log('[Connection] WebSocket 連線錯誤');
-                    // onclose 會被觸發，所以這裡不需要額外處理
-                };
-            },
-            
-            // 客戶端定期發送 ping 確認連線
-            startPing() {
-                // 每 15 秒發送一次 ping
-                this.pingInterval = setInterval(() => {
-                    if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
-                        console.log('[Connection] 發送 ping');
-                        this.websocket.send(JSON.stringify({ type: 'ping' }));
-                        
-                        // 設定 5 秒超時等待 pong
-                        this.pongTimeout = setTimeout(() => {
-                            console.log('[Connection] ping 超時未收到 pong，關閉連線');
-                            this.closeWebSocket();
-                            this.setServerOnline(false);
-                            this.scheduleReconnect();
-                        }, 5000);
-                    }
-                }, 15000);
-            },
-            
-            scheduleReconnect() {
-                if (this.reconnectTimeout) return; // 已經排程中
-                
-                // 如果瀏覽器報告離線，不排程重連
-                if (!navigator.onLine) {
-                    console.log('[Connection] 瀏覽器報告離線，暫不排程重連');
-                    return;
-                }
-                
-                // 固定 3 秒重試間隔
-                const retryDelay = 3000;
-                console.log(`[Connection] 將在 ${retryDelay / 1000} 秒後嘗試重新連線...`);
-                
-                this.reconnectTimeout = setTimeout(() => {
-                    this.reconnectTimeout = null;
-                    this.connectWebSocket();
-                }, retryDelay);
-            },
-            
-            // 設定伺服器連線狀態
-            setServerOnline(online) {
-                console.log('[Connection] setServerOnline:', online);
-                this.serverOnline = online;
-                this.updateConnectionState();
-            },
-            
-            // 計算並更新總體連線狀態
-            // 在線條件：瀏覽器在線 AND 伺服器連線成功
-            // 離線條件：瀏覽器離線 OR 伺服器離線
-            updateConnectionState() {
-                const isOnline = this.browserOnline && this.serverOnline;
-                console.log('[Connection] updateConnectionState - 瀏覽器:', this.browserOnline, '伺服器:', this.serverOnline, '=> 總體:', isOnline);
-                
-                const wasOffline = this.lastOnlineState === false;
-                const wasOnline = this.lastOnlineState === true;
-                
-                if (this.lastOnlineState === isOnline) return; // 狀態沒變，不處理
-                
-                this.lastOnlineState = isOnline;
-                this.updateUI(isOnline);
-                
-                // 發送事件通知其他模組（如 OfflineSearchManager）
-                window.dispatchEvent(new CustomEvent('connectionStateChanged', {
-                    detail: { isOnline }
-                }));
-                
-                if (isOnline) {
-                    console.log('[Connection] 已連線（瀏覽器+伺服器都在線）');
-                    // 只有從離線恢復時才顯示通知
-                    if (wasOffline) {
-                        this.showNotification('已恢復連線', 'success');
-                    }
-                } else {
-                    console.log('[Connection] 已離線（瀏覽器或伺服器離線）');
-                    // 只有從線上變離線時才顯示通知
-                    if (wasOnline) {
-                        this.showNotification('連線已中斷，已切換至離線模式', 'warning');
-                    }
-                }
-            },
-            
-            updateUI(isOnline) {
-                console.log('[Connection] updateUI 被呼叫, isOnline:', isOnline, 'connectionConfirmed:', this.connectionConfirmed);
-                const indicator = document.getElementById('connectionIndicator');
-                const banner = document.getElementById('offlineBanner');
+    </script>
+    
+    <!-- 連線狀態管理共用模組 -->
+    <script src="/js/connection-manager.js"></script>
+    
+    <script>
+        // 建立連線管理器實例，並自訂 form 頁面的 UI 更新
+        const connectionManager = new ConnectionManager({
+            // 自訂 UI 更新回調
+            onUpdateUI: function(isOnline, connectionConfirmed) {
                 const submitBtn = document.querySelector('#foodForm button[type="submit"]');
                 const deleteBtn = document.getElementById('deleteBtn');
                 const favoriteBtn = document.getElementById('favoriteBtn');
                 const formInputs = document.querySelectorAll('#foodForm input:not([type="hidden"]), #foodForm textarea, #foodForm select');
                 
-                console.log('[Connection] indicator 元素:', indicator);
-                
-                if (indicator) {
-                    // 只有在 WebSocket 已確認連線過後才顯示指示器
-                    if (this.connectionConfirmed || this.lastOnlineState !== null) {
-                        indicator.style.display = ''; // 顯示指示器
-                        if (isOnline) {
-                            indicator.className = 'connection-indicator online';
-                            indicator.innerHTML = '<i class="bi bi-wifi"></i> 線上';
-                        } else {
-                            indicator.className = 'connection-indicator offline';
-                            indicator.innerHTML = '<i class="bi bi-wifi-off"></i> 離線';
-                        }
-                        console.log('[Connection] indicator 已更新為:', isOnline ? '線上' : '離線');
-                    } else {
-                        // WebSocket 尚未確認連線，保持隱藏
-                        indicator.style.display = 'none';
-                        console.log('[Connection] indicator 保持隱藏（等待 WebSocket 確認）');
-                    }
-                } else {
-                    console.warn('[Connection] 找不到 connectionIndicator 元素！');
-                }
-                
-                if (banner) {
-                    if (isOnline) {
-                        banner.style.display = 'none';
-                        document.body.classList.remove('offline-mode');
-                    } else {
-                        banner.style.display = 'block';
-                        document.body.classList.add('offline-mode');
-                    }
-                }
-                
-                // 控制表單和按鈕的啟用/禁用狀態
+                // 控制提交按鈕
                 if (submitBtn) {
                     submitBtn.disabled = !isOnline;
                     if (!isOnline) {
@@ -1093,6 +813,7 @@
                     }
                 }
                 
+                // 控制刪除按鈕
                 if (deleteBtn) {
                     deleteBtn.disabled = !isOnline;
                     if (!isOnline) {
@@ -1104,6 +825,7 @@
                     }
                 }
                 
+                // 控制收藏按鈕
                 if (favoriteBtn) {
                     favoriteBtn.disabled = !isOnline;
                     if (!isOnline) {
@@ -1115,7 +837,7 @@
                     }
                 }
                 
-                // 控制表單輸入欄位的啟用/禁用狀態
+                // 控制表單輸入欄位
                 formInputs.forEach(input => {
                     input.disabled = !isOnline;
                     if (!isOnline) {
@@ -1124,40 +846,12 @@
                         input.classList.remove('input-disabled');
                     }
                 });
-            },
-            
-            showNotification(message, type) {
-                const notification = document.createElement('div');
-                notification.className = `alert alert-${type === 'success' ? 'success' : 'warning'}`;
-                const topOffset = document.body.classList.contains('offline-mode') ? 68 : 20;
-                notification.style.cssText = `
-                    position: fixed;
-                    top: ${topOffset}px;
-                    left: 50%;
-                    transform: translateX(-50%);
-                    z-index: 1100;
-                    padding: 12px 24px;
-                    border-radius: 8px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                    animation: slideDown 0.3s ease;
-                    min-width: 280px;
-                    max-width: 90vw;
-                    text-align: center;
-                    white-space: nowrap;
-                `;
-                notification.innerHTML = `<i class="bi bi-${type === 'success' ? 'wifi' : 'wifi-off'}"></i> ${message}`;
-                document.body.appendChild(notification);
-                
-                setTimeout(() => {
-                    notification.style.animation = 'slideUp 0.3s ease';
-                    setTimeout(() => notification.remove(), 300);
-                }, 3000);
             }
-        };
+        });
         
         // 頁面載入時初始化連線狀態管理
         document.addEventListener('DOMContentLoaded', () => {
-            ConnectionManager.init();
+            connectionManager.init();
         });
         
         // 頁面離開時隱藏連線狀態指示器
