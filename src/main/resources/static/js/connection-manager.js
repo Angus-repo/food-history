@@ -137,8 +137,33 @@ class ConnectionManager {
         // 頁面可見性變化時重新連線
         document.addEventListener('visibilitychange', () => {
             if (document.visibilityState === 'visible') {
-                if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
-                    this.connectWebSocket();
+                console.log('[Connection] 頁面回到前景');
+                // 頁面回到前景時，先快速檢查伺服器狀態
+                // 這樣可以避免因為背景閒置導致 WebSocket 斷線而誤判為離線
+                if (navigator.onLine) {
+                    this.quickServerCheck().then(serverReachable => {
+                        if (serverReachable) {
+                            // 伺服器可達，如果 WebSocket 已斷開則重新連線
+                            if (!this.websocket || this.websocket.readyState !== WebSocket.OPEN) {
+                                // 先更新狀態為線上，避免短暫顯示離線
+                                if (!this.serverOnline) {
+                                    console.log('[Connection] 頁面回到前景，伺服器可達，更新為線上狀態');
+                                    this.connectionConfirmed = true;
+                                    this.setServerOnline(true);
+                                }
+                                this.connectWebSocket();
+                            }
+                        } else {
+                            // 伺服器不可達，確認離線狀態
+                            console.log('[Connection] 頁面回到前景，伺服器不可達');
+                            this.setServerOnline(false);
+                            this.scheduleReconnect();
+                        }
+                    });
+                } else {
+                    // 瀏覽器報告離線
+                    this.browserOnline = false;
+                    this.setServerOnline(false);
                 }
             }
         }, { passive: true });
@@ -260,12 +285,19 @@ class ConnectionManager {
             
             if (isNormalClose) {
                 console.log('[Connection] 正常關閉連線，不視為離線');
-                this.connectionConfirmed = false;
+                // 正常關閉時不改變 connectionConfirmed，保持當前狀態
             } else {
-                console.log('[Connection] 異常斷線，視為離線');
-                this.setServerOnline(false);
-                this.connectionConfirmed = false;
-                this.scheduleReconnect();
+                console.log('[Connection] 異常斷線');
+                // 如果頁面在背景中，不立即顯示離線，等回到前景時再檢查
+                if (document.visibilityState === 'hidden') {
+                    console.log('[Connection] 頁面在背景中，延遲處理離線狀態');
+                    // 只排程重連，不更新 UI 狀態
+                    this.scheduleReconnect();
+                } else {
+                    // 頁面在前景，正常處理離線
+                    this.setServerOnline(false);
+                    this.scheduleReconnect();
+                }
             }
         };
         
@@ -280,13 +312,22 @@ class ConnectionManager {
     startPing() {
         this.pingInterval = setInterval(() => {
             if (this.websocket && this.websocket.readyState === WebSocket.OPEN) {
+                // 如果頁面在背景中，跳過 ping（避免因背景閒置導致誤判離線）
+                if (document.visibilityState === 'hidden') {
+                    console.log('[Connection] 頁面在背景中，跳過 ping');
+                    return;
+                }
+                
                 console.log('[Connection] 發送 ping');
                 this.websocket.send(JSON.stringify({ type: 'ping' }));
                 
                 this.pongTimeout = setTimeout(() => {
-                    console.log('[Connection] ping 超時未收到 pong，關閉連線');
+                    console.log('[Connection] ping 超時未收到 pong');
                     this.closeWebSocket();
-                    this.setServerOnline(false);
+                    // 只有頁面在前景時才更新離線狀態
+                    if (document.visibilityState === 'visible') {
+                        this.setServerOnline(false);
+                    }
                     this.scheduleReconnect();
                 }, 5000);
             }

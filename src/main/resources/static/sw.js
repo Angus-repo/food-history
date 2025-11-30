@@ -43,7 +43,7 @@ workbox.precaching.precacheAndRoute([
     { url: '/fonts/bootstrap-icons.woff', revision: '3' },
     { url: '/js/food.js', revision: '3' },
     { url: '/js/offline-search.js', revision: '3' },
-    { url: '/js/connection-manager.js', revision: '2' },
+    { url: '/js/connection-manager.js', revision: '3' },
     { url: '/manifest.json', revision: '3' }
 ]);
 
