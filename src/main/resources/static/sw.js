@@ -13,7 +13,7 @@ workbox.setConfig({ debug: false });
 const CACHE_PREFIX = 'food-history';
 
 // 程式碼版本 - 更新 JS/CSS/HTML 等靜態資源時修改此版本
-const CODE_VERSION = 'c13';
+const CODE_VERSION = 'c14';
 
 // 資料版本 - 只有資料結構改變時才需要修改，一般不需要改
 const DATA_VERSION = 'd1';
@@ -37,7 +37,7 @@ workbox.precaching.precacheAndRoute([
     { url: '/fonts/bootstrap-icons.woff', revision: '3' },
     { url: '/js/food.js', revision: '3' },
     { url: '/js/offline-search.js', revision: '3' },
-    { url: '/js/connection-manager.js', revision: '1' },
+    { url: '/js/connection-manager.js', revision: '2' },
     { url: '/manifest.json', revision: '3' }
 ]);
 
