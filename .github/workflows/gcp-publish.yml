@@ -22,5 +22,7 @@ jobs:
             cd food-history
             rm -rf docker-compose.yml
             wget https://raw.githubusercontent.com/Angus-repo/food-history/main/docker-compose.yml
+            rm -rf nginx.conf
+            wget https://raw.githubusercontent.com/Angus-repo/food-history/main/nginx.conf
             docker-compose down --rmi all
             docker-compose up -d
