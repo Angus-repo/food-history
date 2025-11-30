@@ -173,6 +173,13 @@ public class OAuth2LoginSuccessHandler extends SavedRequestAwareAuthenticationSu
         cookie.setMaxAge(maxAge);
         cookie.setPath("/");
         cookie.setHttpOnly(true);
+        // 在 HTTPS 環境下設定 Secure 屬性，確保 cookie 只通過 HTTPS 傳輸
+        // 檢查 X-Forwarded-Proto header（反向代理環境）或 request.isSecure()
+        String forwardedProto = request.getHeader("X-Forwarded-Proto");
+        boolean isSecure = request.isSecure() || "https".equalsIgnoreCase(forwardedProto);
+        cookie.setSecure(isSecure);
+        logger.debug("Setting Remember Me cookie with Secure={} (request.isSecure={}, X-Forwarded-Proto={})", 
+                     isSecure, request.isSecure(), forwardedProto);
         response.addCookie(cookie);
     }
     
